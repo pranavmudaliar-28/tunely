@@ -23,6 +23,7 @@ Free limits shape the setup (checked October 2026; free tiers change, so re-chec
 
 1. Sign up at **neon.com** with GitHub or Google.
 2. Create a project: name `tunely`, Postgres 16, region **AWS Asia Pacific (Singapore)**.
+   Region matters: Render runs in Singapore, and a US database adds ~200 ms to every query.
 3. Dashboard → **Connect** → copy the connection string (it looks like
    `postgresql://neondb_owner:…@ep-….ap-southeast-1.aws.neon.tech/neondb?sslmode=require`). Keep it for step 2.
 

@@ -3,6 +3,7 @@ import { QUEUE } from '@tunely/shared';
 import { Queue } from 'bullmq';
 import { Redis } from 'ioredis';
 import { buildApp } from './app';
+import { parseOrigins } from './cors';
 
 const env = (name: string) => {
   const v = process.env[name];
@@ -17,9 +18,7 @@ const redis = new Redis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
   family: 0,
 });
 const catalog = new Queue(QUEUE.catalog, { connection: redis });
-const corsOrigins = (process.env.CORS_ORIGINS ?? process.env.NEXT_PUBLIC_SITE_URL ?? '')
-  .split(',')
-  .filter(Boolean);
+const corsOrigins = parseOrigins(process.env.CORS_ORIGINS ?? process.env.NEXT_PUBLIC_SITE_URL);
 
 const app = buildApp({
   db,

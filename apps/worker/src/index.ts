@@ -1,6 +1,6 @@
 import { refreshPublicChannels } from '@tunely/db';
 import { sql } from 'drizzle-orm';
-import { JOB, QUEUE } from '@tunely/shared';
+import { JOB, QUEUE, WORKER_HEARTBEAT_EVERY_S, WORKER_HEARTBEAT_KEY } from '@tunely/shared';
 import { Queue, Worker, type Processor } from 'bullmq';
 import { pino } from 'pino';
 import { config } from './config';
@@ -76,9 +76,16 @@ const workers = [
 ];
 for (const w of workers) w.on('failed', (job, err) => log.error({ job: job?.name, err }, 'job failed'));
 
+// Heartbeat in Redis (not Postgres, so the free database can sleep): read by /v1/health/details.
+const beat = () =>
+  void connection.set(WORKER_HEARTBEAT_KEY, Date.now(), 'EX', WORKER_HEARTBEAT_EVERY_S * 10).catch(() => {});
+beat();
+const heartbeat = setInterval(beat, WORKER_HEARTBEAT_EVERY_S * 1000);
+
 log.info('worker started');
 
 const shutdown = async () => {
+  clearInterval(heartbeat);
   await Promise.all(workers.map((w) => w.close()));
   await Promise.all([catalogQueue.close(), healthQueue.close(), reportsQueue.close()]);
   await pool.end();

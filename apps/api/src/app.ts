@@ -16,6 +16,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { adminRoutes } from './routes/admin';
 import { devRoutes } from './routes/dev';
+import { healthRoutes } from './routes/health';
 import { publicRoutes } from './routes/public';
 
 export interface Deps {
@@ -52,7 +53,8 @@ export function buildApp(deps: Deps) {
     nameSpace: 'rl:',
     // The IP only ever exists as a hash inside a key that expires after the window.
     keyGenerator: (req) => createHash('sha256').update(req.ip).digest('base64url').slice(0, 22),
-    allowList: (req) => req.url === '/v1/health',
+    // Uptime pingers (cron-job.org, UptimeRobot) must never be rate limited.
+    allowList: (req) => req.url.startsWith('/v1/health'),
   });
 
   app.register(swagger, {
@@ -73,6 +75,7 @@ export function buildApp(deps: Deps) {
     { schema: { tags: ['meta'], response: { 200: z.object({ status: z.literal('ok') }) } } },
     async () => ({ status: 'ok' as const }),
   );
+  app.register(healthRoutes(deps));
 
   app.register(publicRoutes(deps));
   app.register(adminRoutes(deps));

@@ -14,3 +14,7 @@ export const JOB = {
 
 // Redis list the API appends playback reports to; the worker drains it into Postgres in batches.
 export const REPORTS_BUFFER = 'playback-reports:buffer';
+
+// The worker refreshes this key every minute; /v1/health/details reports how long ago it last did.
+export const WORKER_HEARTBEAT_KEY = 'tunely:worker:heartbeat';
+export const WORKER_HEARTBEAT_EVERY_S = 60;

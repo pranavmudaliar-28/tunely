@@ -6,12 +6,12 @@
 | API + worker (one service) | **Render** free web service  | `https://tunely-api.onrender.com` |
 | Redis (job queues, cache)  | **Render** free Key Value    | private                           |
 | Postgres                   | **Neon** free                | private connection string         |
-| Keep-awake pinger          | **UptimeRobot** free         | –                                 |
+| Keep-awake pinger          | **cron-job.org** free        | –                                 |
 
 Free limits shape the setup (checked October 2026; free tiers change, so re-check before relying on them):
 
-- **Render** free services sleep after 15 minutes without visitors and take about a minute to wake. UptimeRobot
-  pings `/v1/health` every 5 minutes, so it stays awake. Only one service can stay awake all month (750 hours),
+- **Render** free services sleep after 15 minutes without visitors and take about a minute to wake. A free cron
+  job pings `/v1/health` every 10 minutes, so it stays awake. Only one service can stay awake all month (750 hours),
   so the API and the worker run together in it. Render can restart free services at any time; Tunely recovers
   on its own. Free Key Value loses its data on restart, which only costs queued jobs and cache.
 - **Neon** free gives 1 GB of storage (Tunely uses ~100 MB) and 100 compute-hours a month. A database awake 24/7
@@ -54,12 +54,34 @@ Free limits shape the setup (checked October 2026; free tiers change, so re-chec
 4. **Deploy.**
 5. Back in Render → `tunely-api` → Environment: set `CORS_ORIGINS` to your exact Vercel address (no trailing slash). Save; it redeploys.
 
-## 4. UptimeRobot (keep the API awake)
+## 4. Keep the API awake (free cron job)
 
-1. Sign up at **uptimerobot.com** (free).
-2. **Add New Monitor:** type HTTP(s), URL `https://tunely-api.onrender.com/v1/health`, interval **5 minutes**.
+Render puts a free service to sleep after 15 minutes without requests, and the worker inside it sleeps too.
+A scheduled ping every 10 minutes keeps both running. The API has two endpoints for this (use your own Render URL):
 
-This also emails you if the API goes down.
+| Endpoint             | Use it for                          | What it checks                                                                      |
+| -------------------- | ----------------------------------- | ----------------------------------------------------------------------------------- |
+| `/v1/health`         | **Keep-awake ping**, every 5–10 min | Nothing: answers instantly                                                          |
+| `/v1/health/details` | **Alerts**, every 15–30 min         | Redis answers and the worker sent a heartbeat in the last 3 minutes; **503** if not |
+
+Neither touches Postgres, so pinging doesn't use Neon's free compute hours. Both skip rate limits and accept
+GET or HEAD.
+
+**cron-job.org (free, no card):**
+
+1. Sign up at **cron-job.org**.
+2. **Create cronjob:** title `Tunely keep-awake`, URL `https://tunely-api.onrender.com/v1/health`,
+   schedule **every 10 minutes**, request timeout 30 seconds (the first request after a sleep can take about a
+   minute; the next run succeeds). Save.
+3. Optional alert job: URL `https://tunely-api.onrender.com/v1/health/details`, every 30 minutes, and under
+   **Notifications** enable "notify me when execution fails". A failure (503) means Redis or the worker has a
+   problem.
+
+**UptimeRobot** works too (HTTP(s) monitor on `/v1/health`, every 5 minutes). One pinger is enough.
+
+Check it yourself any time: `curl https://tunely-api.onrender.com/v1/health/details` returns something like
+`{"status":"ok","uptimeSeconds":5321,"redis":"ok","worker":{"status":"ok","lastSeenSecondsAgo":12}}`.
+An `uptimeSeconds` that keeps resetting means Render is restarting the service; it recovers on its own.
 
 ## After it's live
 

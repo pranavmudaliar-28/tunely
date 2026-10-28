@@ -11,7 +11,11 @@ const env = (name: string) => {
 };
 
 const { db, pool } = createDb(env('DATABASE_URL'));
-const redis = new Redis(process.env.REDIS_URL ?? 'redis://localhost:6379', { maxRetriesPerRequest: null });
+// family: 0 lets ioredis use IPv6 too (Railway's private network is IPv6-only).
+const redis = new Redis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
+  maxRetriesPerRequest: null,
+  family: 0,
+});
 const catalog = new Queue(QUEUE.catalog, { connection: redis });
 const corsOrigins = (process.env.CORS_ORIGINS ?? process.env.NEXT_PUBLIC_SITE_URL ?? '')
   .split(',')
@@ -32,7 +36,8 @@ app.addHook('onClose', async () => {
   await pool.end();
 });
 
-const port = Number(process.env.API_PORT ?? 4000);
+// Hosts like Railway assign PORT; API_PORT is for local dev.
+const port = Number(process.env.PORT ?? process.env.API_PORT ?? 4000);
 // '::' is dual-stack: IPv4 and IPv6. With 0.0.0.0, "localhost" first tries ::1 and costs ~200 ms per request on Windows.
 await app.listen({ port, host: process.env.API_HOST ?? '::' });
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => void app.close().then(() => process.exit(0)));

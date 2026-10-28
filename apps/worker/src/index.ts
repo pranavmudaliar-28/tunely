@@ -1,4 +1,5 @@
 import { refreshPublicChannels } from '@tunely/db';
+import { sql } from 'drizzle-orm';
 import { JOB, QUEUE } from '@tunely/shared';
 import { Queue, Worker, type Processor } from 'bullmq';
 import { pino } from 'pino';
@@ -22,6 +23,12 @@ await catalogQueue.upsertJobScheduler(
   { name: JOB.catalogSync },
 );
 // 1000 streams every 15 min checks ~16k streams within the 4 h recheck window.
+// A fresh database (first deploy) gets its catalog now instead of at the next 02:30 UTC run.
+const [first] = (await db.execute<{ count: number }>(sql`select count(*)::int as count from channels`)).rows;
+if (first?.count === 0) {
+  log.info('empty catalog: running the first sync now');
+  await catalogQueue.add(JOB.catalogSync, {}, { jobId: 'initial-sync', removeOnComplete: true });
+}
 await healthQueue.upsertJobScheduler('health-batch', { every: 15 * 60_000 }, { name: JOB.healthBatch });
 await reportsQueue.upsertJobScheduler(
   'flush-reports',

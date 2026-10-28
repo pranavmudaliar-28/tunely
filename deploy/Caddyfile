@@ -1,0 +1,10 @@
+# Automatic HTTPS (Let's Encrypt) for the domain; the API lives under /v1 on the same origin.
+{$DOMAIN} {
+	encode zstd gzip
+	handle /v1/* {
+		reverse_proxy api:4000
+	}
+	handle {
+		reverse_proxy web:3000
+	}
+}

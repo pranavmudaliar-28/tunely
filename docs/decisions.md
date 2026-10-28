@@ -7,3 +7,8 @@ Choices made while building, newest last.
 - **`moduleResolution: Bundler` everywhere.** Every runtime path goes through a bundler or tsx, so extensionless imports work and Next/Turbopack resolves them the same way.
 - **pnpm installed with `npm i -g pnpm`.** `corepack enable` fails without admin rights on Windows (EPERM in Program Files).
 - **Postgres on host port 5433 locally.** 5432 is often taken by other projects; override with `POSTGRES_PORT`.
+- **Sync upserts only rows whose values changed** (`ON CONFLICT … DO UPDATE … WHERE row IS DISTINCT FROM excluded`), so a re-run writes nothing. Channels that leave iptv-org, become blocklisted or NSFW are deleted with their feeds, streams, logos, health and curation rows.
+- **Streams with `channel: null` are skipped.** About 1,900 iptv-org streams aren't mapped to a channel, so they can't be curated or shown.
+- **`stream_checks` is range-partitioned by month** in hand-edited SQL (Drizzle can't express partitions). A `DEFAULT` partition catches stray rows; `ensure_stream_checks_partition(ts)` creates monthly partitions.
+- **Admin endpoints use a single bearer `ADMIN_TOKEN` until Phase 5.** The value `change-me` is treated as unset, so admin is closed by default.
+- **Curation via `curate` CLI until the admin UI exists.**

@@ -38,3 +38,16 @@ pnpm dev                      # web :3000, api :4000, worker
 ## Environment variables
 
 See `.env.example`; every variable is documented there.
+
+## Catalog and curation
+
+```sh
+pnpm --filter @tunely/worker sync:once                          # import iptv-org now (~40 s)
+pnpm --filter @tunely/worker curate approve --country IN --category news
+pnpm --filter @tunely/worker curate approve --id DWNews.de --id France24.fr
+pnpm --filter @tunely/worker curate hide --id Foo.us --reason "pay-tv"
+curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" localhost:4000/v1/admin/sync   # enqueue a sync
+```
+
+The worker also runs the sync daily at 02:30 UTC. New channels land as `pending`; nothing is public until approved.
+Tests that touch Postgres use `TEST_DATABASE_URL` (`createdb tunely_test`, then `pnpm --filter @tunely/db migrate <url>`).

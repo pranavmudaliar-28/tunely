@@ -9,12 +9,15 @@
     "start": "node --env-file-if-exists=../../.env dist/index.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run",
+    "sync:once": "tsx --env-file-if-exists=../../.env scripts/sync-once.ts",
+    "curate": "tsx --env-file-if-exists=../../.env scripts/curate.ts"
   },
   "dependencies": {
     "@tunely/db": "workspace:*",
     "@tunely/shared": "workspace:*",
     "bullmq": "6.5.0",
+    "drizzle-orm": "0.45.4",
     "ioredis": "6.0.0",
     "pino": "10.4.0",
     "zod": "4.6.7"

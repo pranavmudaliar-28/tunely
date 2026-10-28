@@ -28,7 +28,11 @@ export function ChannelLogo({
         'relative flex aspect-video items-center justify-center overflow-hidden rounded-[8px]',
         className,
       )}
-      style={{ background: showLogo ? 'var(--surface-raised)' : tint(id) }}
+      style={{
+        background: showLogo
+          ? 'radial-gradient(120% 90% at 50% 40%, color-mix(in srgb, var(--surface-raised) 94%, #ffffff 6%), var(--surface))'
+          : tint(id),
+      }}
     >
       {showLogo ? (
         // Plain <img>: logos come from many third-party hosts, and routing them through the
@@ -41,7 +45,7 @@ export function ChannelLogo({
           decoding="async"
           referrerPolicy="no-referrer"
           onError={() => setFailed(true)}
-          className="h-3/5 w-3/5 object-contain"
+          className="h-3/5 w-3/5 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.35)] transition-transform duration-300 group-hover:scale-105 motion-reduce:transform-none"
         />
       ) : (
         <span aria-hidden="true" className="text-[34px] font-extrabold">

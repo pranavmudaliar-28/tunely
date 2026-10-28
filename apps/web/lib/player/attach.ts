@@ -32,6 +32,9 @@ export function classifyHlsError(data: Pick<ErrorData, 'type' | 'details' | 'res
  * Attach an HLS stream to a <video>. hls.js where Media Source is available, otherwise native HLS (Safari, iOS).
  * Always call destroy() before attaching the next channel.
  */
+/** Start downloading hls.js early (the player calls this on load) so it's ready before the stream is. */
+export const preloadHls = () => import('hls.js');
+
 export async function attachStream(
   video: HTMLVideoElement,
   url: string,
@@ -43,6 +46,10 @@ export async function attachStream(
       manifestLoadingTimeOut: 10_000,
       fragLoadingTimeOut: 15_000,
       backBufferLength: 30,
+      // Fast first frame: fetch the first segment while the media element attaches, and don't pick a
+      // rendition bigger than the player is showing.
+      startFragPrefetch: true,
+      capLevelToPlayerSize: true,
     });
     let mediaRecoveries = 0;
     hls.on(HlsClass.Events.ERROR, (_e, data) => {

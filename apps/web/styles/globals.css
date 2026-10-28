@@ -42,3 +42,11 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* Rails scroll by touch, trackpad, keyboard and the edge buttons; the bar itself is noise. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

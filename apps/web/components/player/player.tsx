@@ -6,7 +6,7 @@ import type { Events } from 'hls.js';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { sendPlaybackReport } from '@/lib/api-client';
-import { attachStream, type PlaybackError } from '@/lib/player/attach';
+import { attachStream, preloadHls, type PlaybackError } from '@/lib/player/attach';
 import { initialPlayerState, playerReducer } from '@/lib/player/state';
 import { neighbour, usePlayerStore } from '@/lib/player/store';
 import { sessionId } from '@/lib/session';
@@ -25,6 +25,9 @@ import { PlayerOverlay } from './player-overlay';
 import Link from 'next/link';
 
 const LOAD_TIMEOUT_MS = 10_000;
+
+// Begin fetching hls.js as soon as this module loads in the browser, in parallel with hydration.
+if (typeof window !== 'undefined') void preloadHls();
 
 interface Level {
   index: number;

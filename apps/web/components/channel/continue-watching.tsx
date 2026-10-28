@@ -5,6 +5,7 @@ import { useLibrary } from '@/lib/storage/library';
 import { timeAgo } from '@/lib/format';
 import { usePlayerStore } from '@/lib/player/store';
 import { ChannelLogo, LiveBadge } from './channel-logo';
+import { Scroller } from './channel-rail';
 
 export function ContinueWatching() {
   const { history } = useLibrary();
@@ -16,9 +17,9 @@ export function ContinueWatching() {
       <h2 id="continue" className="pb-3.5 text-xl font-bold">
         Continue watching
       </h2>
-      <ul className="flex snap-x gap-3.5 overflow-x-auto pr-4 pb-1.5 sm:pr-14">
+      <Scroller label="Continue watching" list buttonTop={84}>
         {items.map(({ channel, lastWatchedAt }) => (
-          <li key={channel.id} className="w-[260px] shrink-0 snap-start sm:w-[300px]">
+          <div role="listitem" key={channel.id} className="w-[260px] shrink-0 snap-start sm:w-[300px]">
             <Link
               href={`/watch/${encodeURIComponent(channel.id)}`}
               onClick={() => setLineup(items.map((h) => h.channel))}
@@ -34,9 +35,9 @@ export function ContinueWatching() {
                 </span>
               </span>
             </Link>
-          </li>
+          </div>
         ))}
-      </ul>
+      </Scroller>
     </section>
   );
 }

@@ -24,20 +24,24 @@ export function ChannelCard({ channel, lineup, meta, variant = 'rail', eager }: 
     <div
       className={cn(
         'group relative flex flex-col gap-2.5',
-        variant === 'grid' && 'border-border bg-surface rounded-[8px] border p-2.5',
+        variant === 'grid' &&
+          'border-border bg-surface hover:border-text-muted/40 rounded-[10px] border p-2.5 transition-colors duration-200',
       )}
     >
       <Link
         href={`/watch/${encodeURIComponent(channel.id)}`}
         onClick={() => setLineup(lineup)}
-        className="flex flex-col gap-2.5 rounded-[8px] text-text no-underline"
+        className="text-text flex flex-col gap-2.5 rounded-[10px] no-underline"
       >
         <ChannelLogo
           id={channel.id}
           name={channel.name}
           logo={channel.logo}
           eager={eager}
-          className={variant === 'grid' ? 'rounded-[6px]' : undefined}
+          className={cn(
+            'ring-text/0 transition duration-200 ease-out group-hover:-translate-y-0.5 group-hover:shadow-xl group-hover:shadow-black/40 group-hover:ring-2 group-hover:ring-text/25 group-has-[a:focus-visible]:ring-2 group-has-[a:focus-visible]:ring-text/40 motion-reduce:transform-none',
+            variant === 'grid' && 'rounded-[6px]',
+          )}
         >
           <LiveBadge />
           <QualityChip quality={channel.quality} />

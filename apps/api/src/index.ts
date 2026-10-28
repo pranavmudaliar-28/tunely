@@ -33,5 +33,6 @@ app.addHook('onClose', async () => {
 });
 
 const port = Number(process.env.API_PORT ?? 4000);
-await app.listen({ port, host: '0.0.0.0' });
+// '::' is dual-stack: IPv4 and IPv6. With 0.0.0.0, "localhost" first tries ::1 and costs ~200 ms per request on Windows.
+await app.listen({ port, host: process.env.API_HOST ?? '::' });
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => void app.close().then(() => process.exit(0)));

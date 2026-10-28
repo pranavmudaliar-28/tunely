@@ -8,10 +8,13 @@ import { cn } from '@/lib/utils';
 export function FavoriteButton({
   channel,
   compact,
+  secondary,
   className,
 }: {
   channel: ChannelSummary;
   compact?: boolean;
+  /** Translucent style for use next to a primary button (home hero). */
+  secondary?: boolean;
   className?: string;
 }) {
   const on = useIsFavorite(channel.id);
@@ -40,7 +43,11 @@ export function FavoriteButton({
       onClick={() => void toggleFavorite(channel)}
       className={cn(
         'flex h-12 items-center gap-2 rounded-[8px] px-5 text-[15px] font-bold',
-        on ? 'bg-surface-raised text-text' : 'bg-text text-bg',
+        on
+          ? 'bg-surface-raised text-text'
+          : secondary
+            ? 'bg-text/15 text-text hover:bg-text/25'
+            : 'bg-text text-bg',
         className,
       )}
     >

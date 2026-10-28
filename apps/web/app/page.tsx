@@ -1,7 +1,8 @@
 import type { ChannelSummary, Facet } from '@tunely/shared';
 import Link from 'next/link';
-import { ChannelRail } from '@/components/channel/channel-rail';
+import { ChannelRail, Scroller } from '@/components/channel/channel-rail';
 import { ContinueWatching } from '@/components/channel/continue-watching';
+import { ChannelLogo, LiveBadge } from '@/components/channel/channel-logo';
 import { FavoriteButton } from '@/components/channel/favorite-button';
 import { HeroWall } from '@/components/channel/hero-wall';
 import { PlayIcon } from '@/components/ui/icons';
@@ -54,7 +55,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <section aria-label="Featured channel" className="relative h-[520px] overflow-hidden sm:h-[640px]">
+      <section aria-label="Featured channel" className="relative h-[500px] overflow-hidden sm:h-[560px]">
         <HeroWall items={wallItems} />
         <div
           aria-hidden="true"
@@ -64,7 +65,23 @@ export default async function HomePage() {
           aria-hidden="true"
           className="absolute inset-0 bg-[linear-gradient(0deg,var(--bg)_0%,transparent_35%)]"
         />
-        <div className="relative flex h-full max-w-[680px] flex-col justify-end gap-[18px] px-4 pb-12 sm:px-14 sm:pb-[72px]">
+        {featured.logo && (
+          <div
+            aria-hidden="true"
+            className="absolute top-1/2 right-[8%] hidden w-[min(34vw,460px)] -translate-y-1/2 rotate-[-6deg] lg:block"
+          >
+            <ChannelLogo
+              id={featured.id}
+              name={featured.name}
+              logo={featured.logo}
+              eager
+              className="border-text/15 rounded-[16px] border shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8),0_0_80px_-10px_color-mix(in_srgb,var(--accent)_45%,transparent)]"
+            >
+              <LiveBadge className="top-4 left-4" />
+            </ChannelLogo>
+          </div>
+        )}
+        <div className="relative flex h-full max-w-[680px] flex-col justify-end gap-[18px] px-4 pb-10 sm:px-14 sm:pb-14">
           <div className="flex flex-wrap items-center gap-2.5">
             <span className="bg-live flex items-center gap-1.5 rounded-[6px] px-2.5 py-[5px] text-xs font-extrabold tracking-[0.08em] text-[#0B0D12]">
               <span aria-hidden="true" className="size-[7px] rounded-full bg-[#0B0D12]" />
@@ -96,7 +113,7 @@ export default async function HomePage() {
               <PlayIcon size={20} />
               Watch live
             </Link>
-            <FavoriteButton channel={featured} className="h-[52px] px-6 text-[17px]" />
+            <FavoriteButton channel={featured} secondary className="h-[52px] px-6 text-[17px]" />
           </div>
         </div>
       </section>
@@ -115,9 +132,9 @@ export default async function HomePage() {
             <h2 id="langs" className="pb-3.5 text-xl font-bold">
               Watch in your language
             </h2>
-            <ul className="flex gap-3.5 overflow-x-auto pr-4 pb-1.5 sm:pr-14">
+            <Scroller label="Languages" list buttonTop={48}>
               {languages.slice(0, 10).map((l) => (
-                <li key={l.id} className="shrink-0">
+                <div role="listitem" key={l.id} className="shrink-0 snap-start">
                   <Link
                     href={`/language/${l.id}`}
                     className="text-text flex h-24 w-[168px] flex-col justify-between rounded-[10px] px-4 py-3.5 no-underline"
@@ -128,9 +145,9 @@ export default async function HomePage() {
                       {l.name} · {l.count}
                     </span>
                   </Link>
-                </li>
+                </div>
               ))}
-            </ul>
+            </Scroller>
           </section>
         )}
         <ChannelRail

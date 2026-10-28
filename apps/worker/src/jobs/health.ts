@@ -2,8 +2,9 @@ import { refreshPublicChannels, schema, type Db } from '@tunely/db';
 import { sql } from 'drizzle-orm';
 import { checkStream, isWebPlayable, type CheckResult, type StreamInput } from '../health/check-stream';
 import { computeScore } from '../health/score';
+import { config } from '../config';
 
-export const RECHECK_AFTER_HOURS = 4;
+export const RECHECK_AFTER_HOURS = config.recheckAfterHours;
 /** After this many consecutive failures a stream stops counting as natively playable. */
 const NATIVE_FAIL_STREAK = 3;
 
@@ -99,7 +100,7 @@ export async function rescore(db: Db, ids?: string[]) {
     select h.stream_id,
       coalesce((select json_agg(json_build_object('ok', c.ok, 'latencyMs', c.latency_ms) order by c.checked_at desc)
                 from (select ok, latency_ms, checked_at from stream_checks
-                      where stream_id = h.stream_id and checked_at > now() - interval '30 days'
+                      where stream_id = h.stream_id and checked_at > now() - make_interval(days => ${config.checksRetentionDays})
                       order by checked_at desc limit 12) c), '[]') as checks,
       (select count(*) from playback_reports p where p.stream_id = h.stream_id and p.result = 'ok' and p.created_at > now() - interval '24 hours')::int as reports_ok,
       (select count(*) from playback_reports p where p.stream_id = h.stream_id and p.result = 'error' and p.created_at > now() - interval '24 hours')::int as reports_error
@@ -119,14 +120,16 @@ export async function rescore(db: Db, ids?: string[]) {
   return scored.length;
 }
 
-/** Keep 30 days of checks: delete older rows and drop monthly partitions that are entirely older. */
+/** Keep config.checksRetentionDays of checks: delete older rows and drop monthly partitions that are entirely older. */
 export async function pruneChecks(db: Db) {
-  await db.execute(sql`delete from stream_checks where checked_at < now() - interval '30 days'`);
+  await db.execute(
+    sql`delete from stream_checks where checked_at < now() - make_interval(days => ${config.checksRetentionDays})`,
+  );
   const parts = await db.execute<{ name: string }>(sql`
     select c.relname as name from pg_inherits i
     join pg_class c on c.oid = i.inhrelid join pg_class p on p.oid = i.inhparent
     where p.relname = 'stream_checks' and c.relname ~ '^stream_checks_[0-9]{6}$'`);
-  const cutoff = new Date(Date.now() - 31 * 24 * 3600 * 1000);
+  const cutoff = new Date(Date.now() - (config.checksRetentionDays + 1) * 24 * 3600 * 1000);
   for (const { name } of parts.rows) {
     const y = Number(name.slice(-6, -2));
     const m = Number(name.slice(-2));

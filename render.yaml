@@ -1,0 +1,47 @@
+# Render Blueprint (free plan): one web service running the API + worker, and a free Key Value (Redis).
+# Postgres is on Neon's free plan (Render's free Postgres expires after 30 days). See docs/deploy-free-nocard.md.
+services:
+  - type: web
+    name: tunely-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./deploy/render/Dockerfile
+    dockerContext: .
+    healthCheckPath: /v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # paste the Neon connection string
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: tunely-redis
+          property: connectionString
+      - key: ADMIN_TOKEN
+        generateValue: true
+      - key: REPORT_HASH_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false # https://<your-project>.vercel.app
+      - key: TRUST_PROXY
+        value: 'true'
+      # Pace the stream checker so Neon's free database can sleep between batches.
+      - key: HEALTH_BATCH_EVERY_MIN
+        value: '30'
+      - key: HEALTH_BATCH_SIZE
+        value: '2000'
+      - key: RECHECK_AFTER_HOURS
+        value: '12'
+      - key: HEALTH_SCORE_EVERY_MIN
+        value: '360'
+      - key: CHECKS_RETENTION_DAYS
+        value: '7'
+
+  - type: keyvalue
+    name: tunely-redis
+    plan: free
+    region: singapore
+    maxmemoryPolicy: noeviction # BullMQ needs it
+    ipAllowList: [] # only Render services can connect

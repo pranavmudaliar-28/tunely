@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { JOB, QUEUE } from '@tunely/shared';
 import { Queue, Worker, type Processor } from 'bullmq';
 import { pino } from 'pino';
+import { config } from './config';
 import { dbFromEnv } from './db';
 import { runCatalogSync } from './jobs/catalog-sync';
 import { pruneChecks, rescore, runHealthBatch } from './jobs/health';
@@ -29,7 +30,11 @@ if (first?.count === 0) {
   log.info('empty catalog: running the first sync now');
   await catalogQueue.add(JOB.catalogSync, {}, { jobId: 'initial-sync', removeOnComplete: true });
 }
-await healthQueue.upsertJobScheduler('health-batch', { every: 15 * 60_000 }, { name: JOB.healthBatch });
+await healthQueue.upsertJobScheduler(
+  'health-batch',
+  { every: config.healthBatchEveryMin * 60_000 },
+  { name: JOB.healthBatch },
+);
 await reportsQueue.upsertJobScheduler(
   'flush-reports',
   { every: 10_000 },
@@ -37,13 +42,13 @@ await reportsQueue.upsertJobScheduler(
 );
 await healthQueue.upsertJobScheduler(
   'health-score',
-  { pattern: '5 * * * *', tz: 'UTC' },
+  { every: config.healthScoreEveryMin * 60_000 },
   { name: JOB.healthScore },
 );
 
 const handlers: Record<string, Processor> = {
   [JOB.catalogSync]: () => runCatalogSync(db),
-  [JOB.healthBatch]: () => runHealthBatch(db),
+  [JOB.healthBatch]: () => runHealthBatch(db, { limit: config.healthBatchSize }),
   [JOB.flushReports]: async () => ({ inserted: await flushReports(db, connection) }),
   [JOB.healthScore]: async () => {
     await pruneChecks(db);

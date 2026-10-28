@@ -86,3 +86,10 @@ export const PlaybackReportSchema = z.object({
   sessionId: z.string().min(8).max(64),
 });
 export type PlaybackReport = z.infer<typeof PlaybackReportSchema>;
+
+/**
+ * Version of the public API's data (response shapes and ordering). Bump it when either changes:
+ * the API keys its Redis cache on it and the web app sends it with every request, so both the
+ * Redis cache and Next's data cache start fresh instead of serving data in the old form.
+ */
+export const API_DATA_VERSION = 4;

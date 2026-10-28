@@ -4,7 +4,7 @@ import type { ChannelList, ChannelStatus, Facet } from '@tunely/shared';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useRouter } from 'next/navigation';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { CloseIcon } from '@/components/ui/icons';
 import { api, type ChannelFilters } from '@/lib/api-client';
 import { channelMeta } from '@/lib/format';
@@ -29,9 +29,12 @@ const STATUS_LABEL: Record<ChannelStatus, string> = {
   closed: 'Closed',
 };
 
+const URL_KEYS = ['q', 'country', 'category', 'language', 'status'] as const;
+
+/** Canonical /browse URL: fixed parameter order, so the same filters always give the same string. */
 export function browseHref(f: Omit<ChannelFilters, 'cursor' | 'limit'>) {
   const params = new URLSearchParams();
-  for (const [k, v] of Object.entries(f)) if (v) params.set(k, v);
+  for (const k of URL_KEYS) if (f[k]) params.set(k, f[k]);
   const qs = params.toString();
   return `/browse${qs ? `?${qs}` : ''}`;
 }
@@ -46,9 +49,66 @@ export function BrowseView({
   facets: BrowseFacets;
 }) {
   const router = useRouter();
+  const [pending, startTransition] = useTransition();
+
+  // The search box is controlled, and the URL is the source of truth for what's applied. While our own
+  // navigations are in flight the props lag behind, so we remember the URLs we navigated to and only
+  // resync the box (and the filters we build on) when the URL changes for another reason: back button,
+  // a link, a chip.
+  const [term, setTerm] = useState(filters.q ?? '');
+  const [ownHrefs, setOwnHrefs] = useState<string[]>([]);
+  const href = browseHref(filters);
+  const [appliedHref, setAppliedHref] = useState(href);
+  if (href !== appliedHref) {
+    setAppliedHref(href);
+    if (!ownHrefs.includes(href)) setTerm(filters.q ?? '');
+  }
+  const typed = term.trim() || undefined;
+
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // The filters the viewer last asked for; the next URL is built from these, never from lagging props.
+  const intended = useRef<ChannelFilters>(filters);
+  useEffect(() => {
+    if (!ownHrefs.includes(href)) intended.current = filters;
+  }, [href, filters, ownHrefs]);
+
+  const navigate = (next: ChannelFilters, replace: boolean) => {
+    // A pending search-as-you-type would undo this navigation.
+    clearTimeout(typingTimer.current);
+    intended.current = next;
+    const target = browseHref(next);
+    setOwnHrefs((list) => [...list.slice(-9), target]);
+    startTransition(() => {
+      if (replace) router.replace(target, { scroll: false });
+      else router.push(target, { scroll: false });
+    });
+  };
+  // Every change carries the text currently in the box, applied or not.
   // Values come from our own selects and chips, so the status is always a valid ChannelStatus.
-  const set = (patch: Partial<Record<FilterKey | 'q' | 'status', string | undefined>>) =>
-    router.push(browseHref({ ...filters, ...patch } as ChannelFilters), { scroll: false });
+  const set = (patch: Partial<Record<FilterKey | 'q' | 'status', string | undefined>>, replace = false) =>
+    navigate({ ...intended.current, q: typed, ...patch } as ChannelFilters, replace);
+  const clearAll = () => {
+    setTerm('');
+    navigate({}, false);
+  };
+
+  // Back/forward always means 'show me that URL', even one we navigated to ourselves earlier.
+  useEffect(() => {
+    const onPop = () => {
+      clearTimeout(typingTimer.current);
+      setOwnHrefs([]);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  // Search as you type, once typing pauses.
+  useEffect(() => {
+    if (typed === intended.current.q) return;
+    typingTimer.current = setTimeout(() => set({}, true), 400);
+    return () => clearTimeout(typingTimer.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typed]);
 
   const query = useInfiniteQuery({
     queryKey: ['browse', filters],
@@ -73,7 +133,7 @@ export function BrowseView({
         role="search"
         onSubmit={(e) => {
           e.preventDefault();
-          set({ q: new FormData(e.currentTarget).get('q')?.toString().trim() || undefined });
+          set({});
         }}
         className="border-border bg-surface flex flex-wrap items-end gap-3 rounded-[12px] border p-4"
       >
@@ -85,8 +145,10 @@ export function BrowseView({
             id="b-q"
             name="q"
             type="search"
-            defaultValue={filters.q}
-            placeholder="Channel name"
+            value={term}
+            onChange={(e) => setTerm(e.target.value)}
+            autoComplete="off"
+            placeholder="Channel name or network"
             className="border-border bg-bg h-11 rounded-[8px] border px-3 text-sm"
           />
         </div>
@@ -141,7 +203,15 @@ export function BrowseView({
 
       {(active.length > 0 || filters.q || filters.status) && (
         <div className="flex flex-wrap items-center gap-2">
-          {filters.q && <Chip label={`Search: ${filters.q}`} onRemove={() => set({ q: undefined })} />}
+          {filters.q && (
+            <Chip
+              label={`Search: ${filters.q}`}
+              onRemove={() => {
+                setTerm('');
+                set({ q: undefined });
+              }}
+            />
+          )}
           {filters.status && (
             <Chip
               label={`Show: ${STATUS_LABEL[filters.status]}`}
@@ -157,7 +227,7 @@ export function BrowseView({
           ))}
           <button
             type="button"
-            onClick={() => router.push('/browse')}
+            onClick={clearAll}
             className="text-text-muted h-8 px-2.5 text-[13px] underline"
           >
             Clear all
@@ -171,18 +241,22 @@ export function BrowseView({
           <p className="text-text-muted text-sm">Try a different country, category or language.</p>
           <button
             type="button"
-            onClick={() => router.push('/browse')}
+            onClick={clearAll}
             className="bg-surface-raised mt-2 h-11 rounded-[8px] px-5 text-sm font-semibold"
           >
             Show all channels
           </button>
         </div>
       ) : (
-        <VirtualGrid
-          items={items}
-          loadingMore={query.isFetchingNextPage}
-          languageNames={Object.fromEntries(facets.languages.map((l) => [l.id, l.name]))}
-        />
+        <div aria-busy={pending} className={pending ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
+          <VirtualGrid
+            // Remount per filter set: the grid measures its page offset once, and the chips row above it changes.
+            key={JSON.stringify(filters)}
+            items={items}
+            loadingMore={query.isFetchingNextPage}
+            languageNames={Object.fromEntries(facets.languages.map((l) => [l.id, l.name]))}
+          />
+        </div>
       )}
 
       {query.hasNextPage && (

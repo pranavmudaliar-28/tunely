@@ -247,6 +247,7 @@ export const publicChannels = pgMaterializedView('public_channels', {
   countryCode: text('country_code').notNull(),
   categories: text('categories').array().notNull(),
   website: text('website'),
+  sortName: text('sort_name').notNull(),
   languages: text('languages').array().notNull(),
   logoUrl: text('logo_url'),
   bestStreamId: uuid('best_stream_id'),

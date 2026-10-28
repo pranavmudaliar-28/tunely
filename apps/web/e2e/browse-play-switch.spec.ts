@@ -74,3 +74,25 @@ test('favorites persist across reloads without an account', async ({ page }) => 
   await page.reload();
   await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
 });
+
+test('browse search box and filters always agree with the results', async ({ page }) => {
+  await page.goto('/browse');
+  const box = page.locator('#b-q');
+  // Search as you type, no Enter.
+  await box.pressSequentially('zee', { delay: 30 });
+  await expect(page).toHaveURL(/[?&]q=zee/);
+  // Typing then changing a filter applies both.
+  await box.fill('colors');
+  await page.locator('#b-country').selectOption('IN');
+  await expect(page).toHaveURL(/q=colors&country=IN/);
+  await expect(page.getByRole('listitem').first()).toContainText(/colors/i);
+  // Clear all, then type straight away: only the new text applies.
+  await page.getByRole('button', { name: 'Clear all' }).click();
+  await box.pressSequentially('doordarshan', { delay: 20 });
+  await expect(page).toHaveURL(/\/browse\?q=doordarshan$/);
+  await expect(page.locator('#b-country')).toHaveValue('');
+  // Back restores both the URL and the box.
+  await page.goBack();
+  await expect(page).toHaveURL(/q=colors&country=IN/);
+  await expect(box).toHaveValue('colors');
+});

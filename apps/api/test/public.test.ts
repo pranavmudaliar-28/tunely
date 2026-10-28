@@ -89,6 +89,31 @@ describe.skipIf(!testDbUrl)('public API', () => {
     expect(ids((await get('/v1/channels?q=pending')).body)).toEqual(['Pending.in']);
   });
 
+  test('search matches networks, and real matches beat fuzzy look-alikes', async () => {
+    await db.execute(sql`update channels set network = 'Doordarshan' where id = 'DDNews.in'`);
+    await db.execute(
+      sql`insert into channels (id, name, country_code) values ('Darshan.in', 'Darshan TV', 'IN')`,
+    );
+    await refreshPublicChannels(db);
+    await redis.flushdb();
+    const found = ids((await get('/v1/channels?q=doordarshan')).body);
+    expect(found.slice(0, 2).sort()).toEqual(['DDNational.in', 'DDNews.in']); // alt name, network
+    await db.execute(sql`update channels set network = null where id = 'DDNews.in'`);
+    await db.execute(sql`delete from channels where id = 'Darshan.in'`);
+    await refreshPublicChannels(db);
+  });
+
+  test('sorts by letters and digits, ignoring leading symbols', async () => {
+    await db.execute(
+      sql`insert into channels (id, name, country_code) values ('AndB.in', '&Bee', 'IN'), ('Alpha.in', 'Alpha', 'IN'), ('Cee.in', 'Cee', 'IN')`,
+    );
+    await refreshPublicChannels(db);
+    await redis.flushdb();
+    expect(ids((await get('/v1/channels?status=no_stream')).body)).toEqual(['Alpha.in', 'AndB.in', 'Cee.in']);
+    await db.execute(sql`delete from channels where id in ('AndB.in', 'Alpha.in', 'Cee.in')`);
+    await refreshPublicChannels(db);
+  });
+
   test('paginates with a cursor', async () => {
     const p1 = (await get('/v1/channels?limit=3')).body;
     expect(p1.items).toHaveLength(3);

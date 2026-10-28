@@ -86,7 +86,7 @@ export const publicRoutes =
             const term = q.q;
             const like = `%${term.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
             where.push(
-              sql`(${pc.name} ilike ${like} or ${pc.name} % ${term} or array_to_string(${pc.altNames}, ' ') ilike ${like})`,
+              sql`(${pc.name} ilike ${like} or ${pc.name} % ${term} or array_to_string(${pc.altNames}, ' ') ilike ${like} or coalesce(${pc.network}, '') ilike ${like})`,
             );
             const offset = cursor && 'o' in cursor ? cursor.o : 0;
             const rows = await db
@@ -95,8 +95,12 @@ export const publicRoutes =
               .where(and(...where))
               .orderBy(
                 // Names starting with the term first (even if dead: that's the channel they asked for),
-                // then live before dead, then fuzzy similarity.
+                // then other real matches, then live before dead, then fuzzy similarity.
                 desc(sql`(${pc.name} ilike ${term + '%'})`),
+                // Real text matches (name, alt name, network) before trigram look-alikes.
+                desc(
+                  sql`(${pc.name} ilike ${like} or array_to_string(${pc.altNames}, ' ') ilike ${like} or coalesce(${pc.network}, '') ilike ${like})`,
+                ),
                 asc(pc.statusRank),
                 desc(sql`similarity(${pc.name}, ${term})`),
                 asc(pc.id),
@@ -111,14 +115,14 @@ export const publicRoutes =
 
           if (cursor && 'n' in cursor) {
             where.push(
-              sql`(${pc.statusRank}, ${pc.name}, ${pc.id}) > (${cursor.r}, ${cursor.n}, ${cursor.i})`,
+              sql`(${pc.statusRank}, ${pc.sortName}, ${pc.id}) > (${cursor.r}, ${cursor.n}, ${cursor.i})`,
             );
           }
           const rows = await db
             .select()
             .from(pc)
             .where(and(...where))
-            .orderBy(asc(pc.statusRank), asc(pc.name), asc(pc.id))
+            .orderBy(asc(pc.statusRank), asc(pc.sortName), asc(pc.id))
             .limit(q.limit + 1);
           const items = rows.slice(0, q.limit);
           const last = items.at(-1);
@@ -126,7 +130,7 @@ export const publicRoutes =
             items: items.map(toSummary),
             nextCursor:
               rows.length > q.limit && last
-                ? encodeCursor({ r: last.statusRank, n: last.name, i: last.id })
+                ? encodeCursor({ r: last.statusRank, n: last.sortName, i: last.id })
                 : null,
           };
         });

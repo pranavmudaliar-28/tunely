@@ -34,3 +34,6 @@ Choices made while building, newest last.
 - **API cache keys carry a version** (`api:<CACHE_VERSION>:…`), bumped when a response shape changes, so old cached JSON can't break clients after a deploy.
 - **Search ranks names that start with the query first, even dead ones**, then live before dead, then fuzzy matches.
 - **API listens on `::` (dual-stack).** With `0.0.0.0`, `localhost` on Windows tried IPv6 first and every request paid ~200 ms.
+- **Browse search box is controlled and URL-backed.** It searches as you type (400 ms pause), every filter change carries the text in the box, "Clear all" empties it, and back/forward restore both box and results. URLs are canonical (fixed parameter order) so the page can tell its own navigations from outside ones.
+- **Search ranks:** names starting with the query → other real text matches (name, alt names, network, NULL-safe) → live before dead → trigram look-alikes. A–Z ignores leading symbols (`sort_name` in the view), so "&TV" files under T.
+- **One `API_DATA_VERSION` (packages/shared) busts both caches.** The API keys Redis on it and the web sends it as `?v=` so Next's data cache (which survives restarts and deploys) can't serve responses from before an ordering or shape change. Bump it whenever either changes.

@@ -1,4 +1,5 @@
 import {
+  API_DATA_VERSION,
   ChannelListSchema,
   ChannelSchema,
   FacetListSchema,
@@ -32,7 +33,9 @@ async function getJson<S extends z.ZodType>(
   schema: S,
   init?: RequestInit & { next?: { revalidate?: number } },
 ) {
-  const res = await fetch(`${API_URL}${path}`, init);
+  // The version is part of the URL so Next's data cache drops entries from before an API change.
+  const versioned = `${path}${path.includes('?') ? '&' : '?'}v=${API_DATA_VERSION}`;
+  const res = await fetch(`${API_URL}${versioned}`, init);
   if (!res.ok) throw new ApiError(res.status);
   return schema.parse(await res.json()) as z.infer<S>;
 }

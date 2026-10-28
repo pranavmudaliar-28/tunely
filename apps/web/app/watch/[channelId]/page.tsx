@@ -4,7 +4,7 @@ import { ChannelRail } from '@/components/channel/channel-rail';
 import { StatusDot } from '@/components/channel/channel-logo';
 import { FavoriteButton } from '@/components/channel/favorite-button';
 import { ShareButton } from '@/components/channel/share-button';
-import { Player } from '@/components/player/player';
+import { PlayerSlot } from '@/components/player/player-slot';
 import { api, ApiError } from '@/lib/api-client';
 import { channelMeta, countryName } from '@/lib/format';
 
@@ -57,7 +57,7 @@ export default async function WatchPage({ params }: Props) {
 
   return (
     <>
-      <Player channel={channel} fallbackLineup={related.items} meta={meta} />
+      <PlayerSlot channel={channel} fallbackLineup={related.items} meta={meta} />
 
       <section className="flex flex-wrap items-start justify-between gap-x-10 gap-y-5 px-4 pt-7 pb-2 sm:px-14">
         <div className="flex grow basis-[420px] flex-col gap-2.5">

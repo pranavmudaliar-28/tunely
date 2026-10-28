@@ -42,6 +42,8 @@ export const ChannelListQuerySchema = z.object({
   language: z.string().max(3).optional(),
   q: z.string().trim().min(1).max(80).optional(),
   status: ChannelStatusSchema.optional(),
+  /** name: A–Z (default) · best: highest health score and resolution first */
+  sort: z.enum(['name', 'best']).default('name'),
   cursor: z.string().max(200).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(48),
 });

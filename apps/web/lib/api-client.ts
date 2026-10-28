@@ -47,6 +47,8 @@ export interface ChannelFilters {
   q?: string;
   /** 'live' = playable now; omit for the full directory */
   status?: ChannelStatus;
+  /** 'best': highest health score and resolution first */
+  sort?: 'name' | 'best';
   cursor?: string;
   limit?: number;
 }

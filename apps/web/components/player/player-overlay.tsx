@@ -40,10 +40,13 @@ export function PlayerOverlay({
   onRetry,
   canGoNext,
   deadReason,
+  compact,
 }: {
   status: PlayerStatus;
   /** Set when the channel has nothing playable at all; overrides the playback error copy. */
   deadReason?: Kind;
+  /** Mini player: title only, no body text. */
+  compact?: boolean;
   error: PlaybackError | null;
   channelName: string;
   onNext(): void;
@@ -81,11 +84,11 @@ export function PlayerOverlay({
     <div
       role="alert"
       data-testid={`player-error-${kind}`}
-      className="bg-surface text-text absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center"
+      className={`bg-surface text-text absolute inset-0 flex flex-col items-center justify-center text-center ${compact ? 'gap-1 p-3' : 'gap-3 p-6'}`}
     >
-      <Icon size={36} className={kind === 'offline' ? 'text-warning' : 'text-text-muted'} />
+      <Icon size={compact ? 24 : 36} className={kind === 'offline' ? 'text-warning' : 'text-text-muted'} />
       <p className="text-base font-semibold">{copy.title}</p>
-      <p className="text-text-muted text-sm">{copy.body}</p>
+      {!compact && <p className="text-text-muted text-sm">{copy.body}</p>}
       <div className="flex gap-2 pt-1">
         {canGoNext && (
           <button

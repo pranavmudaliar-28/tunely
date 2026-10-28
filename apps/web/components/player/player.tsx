@@ -3,6 +3,7 @@
 import type { Channel, ChannelSummary } from '@tunely/shared';
 import type Hls from 'hls.js';
 import type { Events } from 'hls.js';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from 'react';
 import { sendPlaybackReport } from '@/lib/api-client';
@@ -11,10 +12,12 @@ import { initialPlayerState, playerReducer } from '@/lib/player/state';
 import { neighbour, usePlayerStore } from '@/lib/player/store';
 import { sessionId } from '@/lib/session';
 import { recordWatch } from '@/lib/storage/library';
+import { cn } from '@/lib/utils';
 import {
-  ChevronLeft,
   ChevronDown,
+  ChevronLeft,
   ChevronUp,
+  CloseIcon,
   FullscreenIcon,
   PauseIcon,
   PipIcon,
@@ -22,9 +25,11 @@ import {
   VolumeIcon,
 } from '@/components/ui/icons';
 import { PlayerOverlay } from './player-overlay';
-import Link from 'next/link';
+import { LiveTimeline, SkipButton, useLiveWindow } from './timeline';
 
 const LOAD_TIMEOUT_MS = 10_000;
+/** Controls fade out after this long without mouse, touch or keyboard input while playing. */
+const IDLE_MS = 3000;
 const noopSubscribe = () => () => {};
 
 // Begin fetching hls.js as soon as this module loads in the browser, in parallel with hydration.
@@ -35,19 +40,27 @@ interface Level {
   height: number;
 }
 
+export type PlayerMode = 'full' | 'mini';
+
 export function Player({
   channel,
   fallbackLineup,
   meta,
+  mode = 'full',
+  onClose,
 }: {
   channel: Channel;
   fallbackLineup: ChannelSummary[];
   meta: string;
+  /** full: the watch page. mini: docked in a corner while browsing other pages. */
+  mode?: PlayerMode;
+  onClose?(): void;
 }) {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const full = mode === 'full';
   const streams = useMemo(() => channel.streams.filter((s) => s.webPlayable), [channel.streams]);
   // Nothing to try: say why instead of a generic error.
   const deadReason = streams.length
@@ -64,6 +77,8 @@ export function Player({
   const [levels, setLevels] = useState<Level[]>([]);
   const [level, setLevel] = useState(-1);
   const [needsTap, setNeedsTap] = useState(false);
+  const [idle, setIdle] = useState(false);
+  const live = useLiveWindow(videoRef);
   // Lets tests (and TV remotes' first keypress) know the shortcuts are live.
   const hydrated = useSyncExternalStore(
     noopSubscribe,
@@ -92,7 +107,7 @@ export function Player({
     [lineup, channel.id, router, setLineup],
   );
 
-  // New channel (the player stays mounted so fullscreen survives channel up/down): reset the state machine.
+  // New channel (the player stays mounted so fullscreen and picture-in-picture survive): reset.
   const firstChannel = useRef(channel.id);
   useEffect(() => {
     if (firstChannel.current === channel.id) return;
@@ -228,14 +243,33 @@ export function Player({
     if (document.pictureInPictureElement) void document.exitPictureInPicture();
     else void v.requestPictureInPicture?.().catch(() => {});
   }, []);
+  const seekBy = useCallback((seconds: number) => live.seekTo(live.position + seconds), [live]);
 
-  // Shortcuts: arrows = channel up/down, F = fullscreen, M = mute, Space/K = pause.
+  // Controls hide while watching and come back on any mouse, touch or keyboard input.
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const wake = useCallback(() => {
+    setIdle(false);
+    clearTimeout(idleTimer.current);
+    idleTimer.current = setTimeout(() => setIdle(true), IDLE_MS);
+  }, []);
+  // Start the idle countdown as soon as video plays, not only after the first mouse move.
   useEffect(() => {
+    if (state.status !== 'playing') return;
+    clearTimeout(idleTimer.current);
+    idleTimer.current = setTimeout(() => setIdle(true), IDLE_MS);
+    return () => clearTimeout(idleTimer.current);
+  }, [state.status]);
+  const controlsHidden = full && idle && state.status === 'playing';
+
+  // Shortcuts (watch page only): arrows = channel up/down, ←/→ = 10 s, F, M, Space/K.
+  useEffect(() => {
+    if (!full) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
       const t = e.target as HTMLElement;
       if (t.closest('input, textarea, select, [contenteditable], dialog')) return;
       const isButton = t.closest('button, a');
+      wake();
       switch (e.key) {
         case 'ArrowUp':
         case 'PageUp':
@@ -247,6 +281,14 @@ export function Player({
         case 'ChannelDown':
           e.preventDefault();
           return go(1);
+        case 'ArrowLeft':
+          if (!live.seekable || isButton) return;
+          e.preventDefault();
+          return seekBy(-10);
+        case 'ArrowRight':
+          if (!live.seekable || isButton) return;
+          e.preventDefault();
+          return seekBy(10);
         case 'f':
         case 'F':
           return toggleFullscreen();
@@ -263,18 +305,32 @@ export function Player({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [go, toggleFullscreen, toggleMute, togglePlay]);
+  }, [full, go, toggleFullscreen, toggleMute, togglePlay, seekBy, live.seekable, wake]);
 
   const playing = state.status === 'playing';
   const currentHeight = levels.find((l) => l.index === level)?.height;
-  const btn =
-    'flex size-11 items-center justify-center rounded-[8px] text-[#F2F4F8] hover:bg-white/10 sm:size-12';
+  const btn = cn(
+    'flex items-center justify-center rounded-[8px] text-[#F2F4F8] hover:bg-white/10',
+    full ? 'size-11 sm:size-12' : 'size-10',
+  );
+  const fade = cn('transition-opacity duration-300', controlsHidden && 'pointer-events-none opacity-0');
 
   return (
-    <section aria-label={`${channel.name} player`} className="relative" data-hydrated={hydrated || undefined}>
+    <section
+      aria-label={`${channel.name} player`}
+      className="relative"
+      data-hydrated={hydrated || undefined}
+      data-mode={mode}
+    >
       <div
         ref={frameRef}
-        className="relative aspect-video w-full overflow-hidden bg-black min-[720px]:rounded-none"
+        onPointerMove={wake}
+        onPointerDown={wake}
+        onFocus={wake}
+        className={cn(
+          'relative aspect-video w-full overflow-hidden bg-black',
+          controlsHidden && 'cursor-none',
+        )}
       >
         <video
           ref={videoRef}
@@ -282,29 +338,56 @@ export function Player({
           className="absolute inset-0 size-full"
           onPause={() => dispatch({ type: 'paused' })}
           onPlay={() => state.status === 'paused' && dispatch({ type: 'playing' })}
-          onDoubleClick={toggleFullscreen}
+          onDoubleClick={full ? toggleFullscreen : undefined}
         />
 
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/70 to-transparent"
-        />
-        <div className="absolute inset-x-4 top-4 flex items-center gap-3.5 sm:inset-x-8 sm:top-6">
-          <Link
-            href="/"
-            aria-label="Back to home"
-            className="flex size-11 items-center justify-center rounded-full bg-white/15 text-[#F2F4F8]"
-          >
-            <ChevronLeft size={20} />
-          </Link>
-          <div className="invisible min-w-0 grow text-[#F2F4F8] sm:visible">
-            <div className="truncate text-lg font-bold">{channel.name}</div>
-            <div className="truncate text-[13px] text-[#C9D0DD]">{meta}</div>
+        {full ? (
+          <>
+            <div
+              aria-hidden="true"
+              className={cn(
+                'pointer-events-none absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/70 to-transparent',
+                fade,
+              )}
+            />
+            <div
+              className={cn('absolute inset-x-4 top-4 flex items-center gap-3.5 sm:inset-x-8 sm:top-6', fade)}
+            >
+              <Link
+                href="/"
+                aria-label="Back to home"
+                className="flex size-11 items-center justify-center rounded-full bg-white/15 text-[#F2F4F8]"
+              >
+                <ChevronLeft size={20} />
+              </Link>
+              <div className="invisible min-w-0 grow text-[#F2F4F8] sm:visible">
+                <div className="truncate text-lg font-bold">{channel.name}</div>
+                <div className="truncate text-[13px] text-[#C9D0DD]">{meta}</div>
+              </div>
+              <span className="bg-live rounded-[6px] px-2.5 py-[5px] text-xs font-extrabold tracking-[0.08em] text-[#0B0D12]">
+                LIVE
+              </span>
+            </div>
+          </>
+        ) : (
+          <div className="absolute inset-x-2 top-2 flex items-center gap-2">
+            <Link
+              href={`/watch/${encodeURIComponent(channel.id)}`}
+              className="min-w-0 grow truncate rounded-[6px] bg-black/60 px-2 py-1 text-[13px] font-semibold text-[#F2F4F8] no-underline"
+              aria-label={`Open ${channel.name}`}
+            >
+              {channel.name}
+            </Link>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close player"
+              className="flex size-9 items-center justify-center rounded-full bg-black/60 text-[#F2F4F8]"
+            >
+              <CloseIcon size={18} />
+            </button>
           </div>
-          <span className="bg-live rounded-[6px] px-2.5 py-[5px] text-xs font-extrabold tracking-[0.08em] text-[#0B0D12]">
-            LIVE
-          </span>
-        </div>
+        )}
 
         <PlayerOverlay
           status={state.status}
@@ -312,15 +395,16 @@ export function Player({
           channelName={channel.name}
           onNext={() => go(1)}
           onRetry={() => dispatch({ type: 'retry' })}
-          canGoNext={lineup.length > 1}
+          canGoNext={full && lineup.length > 1}
           deadReason={deadReason}
+          compact={!full}
         />
 
         {needsTap && playing && (
           <button
             type="button"
             onClick={toggleMute}
-            className="bg-surface-raised text-text absolute top-4 left-1/2 -translate-x-1/2 rounded-full px-4 py-2.5 text-sm font-semibold sm:top-24"
+            className="bg-surface-raised text-text absolute top-14 left-1/2 -translate-x-1/2 rounded-full px-4 py-2.5 text-sm font-semibold sm:top-24"
           >
             Tap to unmute
           </button>
@@ -328,93 +412,144 @@ export function Player({
 
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-black/80 to-transparent"
-        />
-        <div className="absolute inset-x-1 bottom-1 flex items-center gap-0 sm:inset-x-6 sm:bottom-5 sm:gap-1.5">
-          <button type="button" className={btn} onClick={togglePlay} aria-label={playing ? 'Pause' : 'Play'}>
-            {playing ? <PauseIcon size={26} /> : <PlayIcon size={24} />}
-          </button>
-          <button
-            type="button"
-            className={btn}
-            onClick={() => go(-1)}
-            aria-label="Previous channel"
-            disabled={lineup.length < 2}
-          >
-            <ChevronUp />
-          </button>
-          <button
-            type="button"
-            className={btn}
-            onClick={() => go(1)}
-            aria-label="Next channel"
-            disabled={lineup.length < 2}
-          >
-            <ChevronDown />
-          </button>
-          <button
-            type="button"
-            className={btn}
-            onClick={toggleMute}
-            aria-label={muted || needsTap ? 'Unmute' : 'Mute'}
-          >
-            <VolumeIcon muted={muted || needsTap} />
-          </button>
-          <label htmlFor="player-volume" className="sr-only">
-            Volume
-          </label>
-          <input
-            id="player-volume"
-            type="range"
-            min={0}
-            max={100}
-            value={Math.round((muted ? 0 : volume) * 100)}
-            onChange={(e) => {
-              setNeedsTap(false);
-              setVolume(Number(e.target.value) / 100);
-            }}
-            className="hidden w-28 accent-[#F2F4F8] sm:block"
-          />
-          <span className="hidden items-center gap-1.5 pl-3 text-sm font-bold text-[#F2F4F8] sm:flex">
-            <span aria-hidden="true" className="bg-live size-2 rounded-full" />
-            Live
-          </span>
-          <span className="grow" />
-          {levels.length > 1 && (
-            <>
-              <label htmlFor="player-quality" className="sr-only">
-                Quality
-              </label>
-              <select
-                id="player-quality"
-                value={level}
-                onChange={(e) => {
-                  const next = Number(e.target.value);
-                  if (hlsRef.current) hlsRef.current.currentLevel = next;
-                  setLevel(next);
-                }}
-                className="h-10 max-w-[104px] rounded-[8px] bg-white/15 px-2 text-sm font-semibold text-[#F2F4F8] sm:max-w-none sm:px-3 [&>option]:text-black"
-              >
-                <option value={-1}>Auto{level === -1 && currentHeight ? ` · ${currentHeight}p` : ''}</option>
-                {levels.map((l) => (
-                  <option key={l.index} value={l.index}>
-                    {l.height}p
-                  </option>
-                ))}
-              </select>
-            </>
+          className={cn(
+            'pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent',
+            full ? 'h-48' : 'h-20',
+            fade,
           )}
-          <button
-            type="button"
-            className={`${btn} hidden sm:flex`}
-            onClick={togglePip}
-            aria-label="Picture in picture"
-          >
-            <PipIcon />
-          </button>
-          <button type="button" className={btn} onClick={toggleFullscreen} aria-label="Fullscreen">
-            <FullscreenIcon />
-          </button>
+        />
+        <div
+          className={cn(
+            'absolute flex flex-col',
+            full ? 'inset-x-1 bottom-1 gap-1 sm:inset-x-6 sm:bottom-4' : 'inset-x-1 bottom-0.5',
+            fade,
+          )}
+        >
+          {full && live.seekable && <LiveTimeline live={live} />}
+          <div className={cn('flex items-center', full ? 'gap-0 sm:gap-1.5' : 'gap-0')}>
+            <button
+              type="button"
+              className={btn}
+              onClick={togglePlay}
+              aria-label={playing ? 'Pause' : 'Play'}
+            >
+              {playing ? <PauseIcon size={full ? 26 : 22} /> : <PlayIcon size={full ? 24 : 20} />}
+            </button>
+            {full && live.seekable && (
+              <>
+                <SkipButton seconds={-10} onClick={() => seekBy(-10)} className={btn} />
+                <SkipButton
+                  seconds={10}
+                  onClick={() => seekBy(10)}
+                  className={btn}
+                  disabled={live.behind < 1}
+                />
+              </>
+            )}
+            {full && (
+              <>
+                <button
+                  type="button"
+                  className={btn}
+                  onClick={() => go(-1)}
+                  aria-label="Previous channel"
+                  disabled={lineup.length < 2}
+                >
+                  <ChevronUp />
+                </button>
+                <button
+                  type="button"
+                  className={btn}
+                  onClick={() => go(1)}
+                  aria-label="Next channel"
+                  disabled={lineup.length < 2}
+                >
+                  <ChevronDown />
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              className={btn}
+              onClick={toggleMute}
+              aria-label={muted || needsTap ? 'Unmute' : 'Mute'}
+            >
+              <VolumeIcon muted={muted || needsTap} size={full ? 22 : 20} />
+            </button>
+            {full && (
+              <>
+                <label htmlFor="player-volume" className="sr-only">
+                  Volume
+                </label>
+                <input
+                  id="player-volume"
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={Math.round((muted ? 0 : volume) * 100)}
+                  onChange={(e) => {
+                    setNeedsTap(false);
+                    setVolume(Number(e.target.value) / 100);
+                  }}
+                  className="hidden w-28 accent-[#F2F4F8] sm:block"
+                />
+                {!live.seekable && (
+                  <span className="hidden items-center gap-1.5 pl-3 text-sm font-bold text-[#F2F4F8] sm:flex">
+                    <span aria-hidden="true" className="bg-live size-2 rounded-full" />
+                    Live
+                  </span>
+                )}
+              </>
+            )}
+            <span className="grow" />
+            {full && levels.length > 1 && (
+              <>
+                <label htmlFor="player-quality" className="sr-only">
+                  Quality
+                </label>
+                <select
+                  id="player-quality"
+                  value={level}
+                  onChange={(e) => {
+                    const next = Number(e.target.value);
+                    if (hlsRef.current) hlsRef.current.currentLevel = next;
+                    setLevel(next);
+                  }}
+                  className="h-10 max-w-[104px] rounded-[8px] bg-white/15 px-2 text-sm font-semibold text-[#F2F4F8] sm:max-w-none sm:px-3 [&>option]:text-black"
+                >
+                  <option value={-1}>
+                    Auto{level === -1 && currentHeight ? ` · ${currentHeight}p` : ''}
+                  </option>
+                  {levels.map((l) => (
+                    <option key={l.index} value={l.index}>
+                      {l.height}p
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+            <button
+              type="button"
+              className={cn(btn, full && 'hidden sm:flex')}
+              onClick={togglePip}
+              aria-label="Picture in picture"
+            >
+              <PipIcon size={full ? 22 : 20} />
+            </button>
+            {full ? (
+              <button type="button" className={btn} onClick={toggleFullscreen} aria-label="Fullscreen">
+                <FullscreenIcon />
+              </button>
+            ) : (
+              <Link
+                href={`/watch/${encodeURIComponent(channel.id)}`}
+                className={btn}
+                aria-label={`Expand ${channel.name}`}
+              >
+                <FullscreenIcon size={20} />
+              </Link>
+            )}
+          </div>
         </div>
       </div>
       <p className="sr-only" aria-live="polite">

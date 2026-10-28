@@ -114,6 +114,23 @@ describe.skipIf(!testDbUrl)('public API', () => {
     await refreshPublicChannels(db);
   });
 
+  test('sort=best puts the highest-scoring live channels first', async () => {
+    // DW 99 (1080p), Pending 99 (720p), DD News 95, DD National 80, France 24 60, then dead ones.
+    expect(ids((await get('/v1/channels?sort=best')).body)).toEqual([
+      'DWNews.de',
+      'Pending.in',
+      'DDNews.in',
+      'DDNational.in',
+      'France24.fr',
+      'Dead.in',
+    ]);
+    const p1 = (await get('/v1/channels?sort=best&limit=2')).body;
+    expect(ids((await get(`/v1/channels?sort=best&limit=2&cursor=${p1.nextCursor}`)).body)).toEqual([
+      'DDNews.in',
+      'DDNational.in',
+    ]);
+  });
+
   test('paginates with a cursor', async () => {
     const p1 = (await get('/v1/channels?limit=3')).body;
     expect(p1.items).toHaveLength(3);

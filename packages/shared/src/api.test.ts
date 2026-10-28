@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { ChannelListQuerySchema, PlaybackReportSchema } from './api';
 
 test('channel list query normalizes country and defaults limit', () => {
-  expect(ChannelListQuerySchema.parse({ country: 'in' })).toEqual({ country: 'IN', limit: 48 });
+  expect(ChannelListQuerySchema.parse({ country: 'in' })).toEqual({ country: 'IN', limit: 48, sort: 'name' });
   expect(ChannelListQuerySchema.safeParse({ limit: '500' }).success).toBe(false);
 });
 

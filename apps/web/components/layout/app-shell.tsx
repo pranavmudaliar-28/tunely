@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { GridIcon, HeartIcon, HomeIcon, LogoMark, SearchIcon, TvIcon } from '@/components/ui/icons';
 import { NavLink } from './nav-link';
+import { GlobalPlayer } from '@/components/player/global-player';
 import { SearchCommand } from '@/components/search/search-command';
 import { ThemeToggle } from './theme-toggle';
 
@@ -61,6 +62,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </footer>
       </div>
       <SearchCommand />
+      <GlobalPlayer />
     </div>
   );
 }

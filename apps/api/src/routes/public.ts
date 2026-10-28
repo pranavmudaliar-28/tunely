@@ -113,6 +113,28 @@ export const publicRoutes =
             };
           }
 
+          if (q.sort === 'best') {
+            // Offset paging: the order key (score, height) isn't unique enough for a keyset cursor.
+            const offset = cursor && 'o' in cursor ? cursor.o : 0;
+            const rows = await db
+              .select()
+              .from(pc)
+              .where(and(...where))
+              .orderBy(
+                asc(pc.statusRank),
+                sql`${pc.bestScore} desc nulls last`,
+                sql`${pc.bestHeight} desc nulls last`,
+                sql`(${pc.logoUrl} is null)`,
+                asc(pc.sortName),
+              )
+              .limit(q.limit + 1)
+              .offset(offset);
+            return {
+              items: rows.slice(0, q.limit).map(toSummary),
+              nextCursor: rows.length > q.limit ? encodeCursor({ o: offset + q.limit }) : null,
+            };
+          }
+
           if (cursor && 'n' in cursor) {
             where.push(
               sql`(${pc.statusRank}, ${pc.sortName}, ${pc.id}) > (${cursor.r}, ${cursor.n}, ${cursor.i})`,

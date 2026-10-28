@@ -1,0 +1,86 @@
+'use client';
+
+import { useState } from 'react';
+import { monogram, tint } from '@/lib/format';
+import { cn } from '@/lib/utils';
+
+/** Logo on a neutral 16:9 tile; tinted monogram when there is no logo or it fails to load. */
+export function ChannelLogo({
+  id,
+  name,
+  logo,
+  className,
+  children,
+  eager,
+}: {
+  id: string;
+  name: string;
+  logo: string | null;
+  className?: string;
+  children?: React.ReactNode;
+  eager?: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+  const showLogo = logo && !failed;
+  return (
+    <span
+      className={cn(
+        'relative flex aspect-video items-center justify-center overflow-hidden rounded-[8px]',
+        className,
+      )}
+      style={{ background: showLogo ? 'var(--surface-raised)' : tint(id) }}
+    >
+      {showLogo ? (
+        // Plain <img>: logos come from many third-party hosts, and routing them through the
+        // Next image optimizer would turn it into an open fetch proxy.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={logo}
+          alt=""
+          loading={eager ? 'eager' : 'lazy'}
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onError={() => setFailed(true)}
+          className="h-3/5 w-3/5 object-contain"
+        />
+      ) : (
+        <span aria-hidden="true" className="text-[34px] font-extrabold">
+          {monogram(name)}
+        </span>
+      )}
+      {children}
+    </span>
+  );
+}
+
+export function LiveBadge({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        'bg-live absolute top-2.5 left-2.5 rounded-[5px] px-2 py-[3px] text-[11px] font-extrabold tracking-[0.08em] text-[#0B0D12]',
+        className,
+      )}
+    >
+      LIVE
+    </span>
+  );
+}
+
+export function QualityChip({ quality }: { quality: string | null }) {
+  if (!quality) return null;
+  return (
+    <span className="absolute top-2.5 right-2.5 rounded-[5px] bg-[#0B0D12CC] px-[7px] py-[3px] text-[11px] font-bold text-[#F2F4F8]">
+      {quality}
+    </span>
+  );
+}
+
+export function StatusDot({ status, label }: { status: 'online' | 'unstable' | 'offline'; label: string }) {
+  const color = status === 'online' ? 'bg-success' : status === 'unstable' ? 'bg-warning' : 'bg-text-muted';
+  return (
+    <span className="flex items-center gap-1.5">
+      <span aria-hidden="true" className={cn('size-[7px] rounded-full', color)} />
+      {label}
+    </span>
+  );
+}

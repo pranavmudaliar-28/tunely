@@ -51,3 +51,13 @@ curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" localhost:4000/v1/admin/syn
 
 The worker also runs the sync daily at 02:30 UTC. New channels land as `pending`; nothing is public until approved.
 Tests that touch Postgres use `TEST_DATABASE_URL` (`createdb tunely_test`, then `pnpm --filter @tunely/db migrate <url>`).
+
+## Web app
+
+- `pnpm dev`, then open http://localhost:3000 (needs a synced, health-checked catalog and some approved channels; see above).
+- `pnpm --filter @tunely/worker health:once` checks every due stream now (~25 min for the full catalog).
+- `pnpm --filter @tunely/web e2e` runs Playwright against the running stack in your installed Chrome.
+- `MANUAL=1 pnpm --filter @tunely/web e2e` plays 50 random web-playable streams (`/dev/stream-test`) and asserts at least 80% succeed.
+- `pnpm --filter @tunely/api bench` measures cached API latency.
+
+Keyboard: ↑/↓ channel up/down, F fullscreen, M mute, Space pause, Ctrl/⌘+K search.

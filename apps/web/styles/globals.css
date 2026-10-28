@@ -16,7 +16,9 @@
   --color-warning: var(--warning);
   --radius-card: var(--radius-card);
   --radius-player: var(--radius-player);
-  --font-sans: var(--font-inter), var(--font-noto), system-ui, sans-serif;
+  --font-sans:
+    var(--font-inter), var(--font-noto), var(--font-gujarati), var(--font-tamil), var(--font-bengali),
+    var(--font-gurmukhi), system-ui, sans-serif;
 }
 
 body {

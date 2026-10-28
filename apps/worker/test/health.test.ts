@@ -82,16 +82,14 @@ describe.skipIf(!url)('health jobs (database)', () => {
       .select({ id: schema.streams.id })
       .from(schema.streams)
       .where(eq(schema.streams.channelId, 'DDNews.in'));
-    await db
-      .insert(schema.playbackReports)
-      .values(
-        Array.from({ length: 10 }, () => ({
-          streamId: dd!.id,
-          platform: 'web',
-          result: 'error' as const,
-          anonSessionHash: 'x',
-        })),
-      );
+    await db.insert(schema.playbackReports).values(
+      Array.from({ length: 10 }, () => ({
+        streamId: dd!.id,
+        platform: 'web',
+        result: 'error' as const,
+        anonSessionHash: 'x',
+      })),
+    );
     await rescore(db);
     const [h] = await db.select().from(schema.streamHealth).where(eq(schema.streamHealth.streamId, dd!.id));
     expect(h!.score).toBeLessThan(50);

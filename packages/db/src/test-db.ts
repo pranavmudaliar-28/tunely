@@ -12,7 +12,10 @@ export async function prepareTestDb(baseUrl: string, suffix: string): Promise<st
   const name = `${url.pathname.slice(1)}_${suffix}`.replace(/[^a-z0-9_]/gi, '_');
   url.pathname = `/${name}`;
 
-  const admin = new pg.Client({ connectionString: baseUrl });
+  // Connect via the always-present maintenance database: the base test database may not exist (fresh CI).
+  const adminUrl = new URL(baseUrl);
+  adminUrl.pathname = '/postgres';
+  const admin = new pg.Client({ connectionString: adminUrl.toString() });
   await admin.connect();
   try {
     const exists = await admin.query('select 1 from pg_database where datname = $1', [name]);

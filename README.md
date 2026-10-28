@@ -61,3 +61,11 @@ Tests that touch Postgres use `TEST_DATABASE_URL` (`createdb tunely_test`, then 
 - `pnpm --filter @tunely/api bench` measures cached API latency.
 
 Keyboard: ↑/↓ channel up/down, F fullscreen, M mute, Space pause, Ctrl/⌘+K search.
+
+## Ads (Google AdSense)
+
+1. Get the site approved in AdSense, then set `NEXT_PUBLIC_ADSENSE_CLIENT=ca-pub-…` and an ad unit id (`NEXT_PUBLIC_ADSENSE_SLOT`, or one per placement: `_HOME`, `_BROWSE`, `_WATCH`) in `.env`, and restart.
+2. `/ads.txt` and the AdSense verification meta tag are generated automatically.
+3. In AdSense → Privacy & messaging, enable the consent message for EEA/UK visitors.
+
+With no publisher id, no ad code loads; in development dashed boxes show where ads will appear.

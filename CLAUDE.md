@@ -57,6 +57,14 @@ The same API will later serve Android, Android TV and iOS apps.
 - Send a playback report (result, error type, time to first frame) for every attempt.
 - Shortcuts: arrows = channel up/down, F = fullscreen, M = mute, Space = pause.
 
+## Ads
+
+- Google AdSense display banners (owner decision, 2026-10-28): home (before the first category rail, then every 6),
+  browse/category pages (under the grid), watch page (below the title). Never on or over video, including the
+  mini player: that breaks AdSense placement policy (video ads would need Ad Manager/IMA).
+- Off unless NEXT_PUBLIC_ADSENSE_CLIENT is set. Consent for EU/UK users comes from AdSense's own CMP
+  (Privacy & messaging in the AdSense dashboard). Phase 6 CSP must allow the googlesyndication domains.
+
 ## Security
 
 - Strict CSP (media-src https: blob:), HSTS, nosniff, Referrer-Policy,

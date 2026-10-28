@@ -4,6 +4,7 @@ import { ChannelRail } from '@/components/channel/channel-rail';
 import { StatusDot } from '@/components/channel/channel-logo';
 import { FavoriteButton } from '@/components/channel/favorite-button';
 import { ShareButton } from '@/components/channel/share-button';
+import { AdBanner } from '@/components/ads/ad-banner';
 import { PlayerSlot } from '@/components/player/player-slot';
 import { api, ApiError } from '@/lib/api-client';
 import { channelMeta, countryName } from '@/lib/format';
@@ -92,6 +93,8 @@ export default async function WatchPage({ params }: Props) {
         </div>
       </section>
 
+      {/* Below the player and title, never on or over the video. */}
+      <AdBanner placement="watch" className="mx-4 mt-6 sm:mx-14" />
       <div className="flex flex-col gap-10 pt-7 pb-14 pl-4 sm:pl-14">
         <ChannelRail
           title={`More from ${countryName(channel.country)}`}

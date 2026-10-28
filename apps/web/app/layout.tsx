@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
+import { ADSENSE_CLIENT } from '@/lib/ads';
 import {
   Inter,
   Noto_Sans,
@@ -48,6 +50,8 @@ export const metadata: Metadata = {
   description: 'Watch free, publicly available live TV channels instantly. No app, no sign-up.',
   applicationName: 'Tunely',
   openGraph: { siteName: 'Tunely', type: 'website' },
+  // AdSense site verification.
+  other: ADSENSE_CLIENT ? { 'google-adsense-account': ADSENSE_CLIENT } : undefined,
 };
 
 export const viewport: Viewport = { themeColor: '#0B0D12', colorScheme: 'dark light' };
@@ -63,6 +67,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <AppShell>{children}</AppShell>
         </Providers>
+        {ADSENSE_CLIENT && (
+          <Script
+            id="adsense"
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`}
+            strategy="afterInteractive"
+            crossOrigin="anonymous"
+          />
+        )}
       </body>
     </html>
   );

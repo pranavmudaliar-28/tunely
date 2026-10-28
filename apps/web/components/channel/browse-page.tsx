@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { AdBanner } from '@/components/ads/ad-banner';
 import { api, type ChannelFilters } from '@/lib/api-client';
 import { BrowseView } from './browse-view';
 
@@ -35,6 +36,7 @@ export async function BrowsePage({
         </p>
       </div>
       <BrowseView filters={filters} firstPage={firstPage} facets={{ countries, categories, languages }} />
+      <AdBanner placement="browse" />
     </div>
   );
 }

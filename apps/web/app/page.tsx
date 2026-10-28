@@ -1,5 +1,7 @@
 import type { ChannelSummary, Facet } from '@tunely/shared';
 import Link from 'next/link';
+import { Fragment } from 'react';
+import { AdBanner } from '@/components/ads/ad-banner';
 import { ChannelRail, Scroller } from '@/components/channel/channel-rail';
 import { ContinueWatching } from '@/components/channel/continue-watching';
 import { HeroCarousel, type HeroSlide } from '@/components/channel/hero-carousel';
@@ -22,6 +24,8 @@ const HERO_CATEGORIES = [
   'religious',
 ];
 const MAX_SLIDES = 7;
+/** One banner before the first category rail, then one every this many rails. */
+const AD_EVERY_RAILS = 6;
 const RAIL_PRIORITY = [
   'entertainment',
   'movies',
@@ -179,14 +183,16 @@ export default async function HomePage() {
           seeAllHref="/browse?category=news&language=eng"
           languageNames={languageNames}
         />
-        {categoryRails.map(({ facet, items }) => (
-          <ChannelRail
-            key={facet.id}
-            title={facet.name}
-            items={items}
-            seeAllHref={`/category/${facet.id}`}
-            languageNames={languageNames}
-          />
+        {categoryRails.map(({ facet, items }, i) => (
+          <Fragment key={facet.id}>
+            {i % AD_EVERY_RAILS === 0 && <AdBanner placement="home" className="mr-4 sm:mr-14" />}
+            <ChannelRail
+              title={facet.name}
+              items={items}
+              seeAllHref={`/category/${facet.id}`}
+              languageNames={languageNames}
+            />
+          </Fragment>
         ))}
       </div>
     </>

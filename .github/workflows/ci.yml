@@ -1,0 +1,38 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: { POSTGRES_USER: tunely, POSTGRES_PASSWORD: tunely, POSTGRES_DB: tunely }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U tunely" --health-interval 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+    env:
+      DATABASE_URL: postgres://tunely:tunely@localhost:5432/tunely
+      TEST_DATABASE_URL: postgres://tunely:tunely@localhost:5432/tunely
+      REDIS_URL: redis://localhost:6379
+      ADMIN_TOKEN: ci-admin-token
+      REPORT_HASH_SECRET: ci-secret
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm audit --audit-level high

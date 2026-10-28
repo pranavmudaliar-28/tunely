@@ -1,0 +1,1 @@
+{ "extends": "@tunely/config/tsconfig.base.json", "compilerOptions": { "noEmit": true }, "include": ["src"] }

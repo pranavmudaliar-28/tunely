@@ -34,6 +34,7 @@ pnpm dev                      # web :3000, api :4000, worker
 | `pnpm typecheck` / `lint` / `test` | Checks run in CI                         |
 | `pnpm db:generate`                 | Generate a migration from schema changes |
 | `pnpm db:migrate`                  | Apply migrations                         |
+n**Deploying:** free on one always-on server, see [docs/deploy-free.md](docs/deploy-free.md); or managed services (Vercel + Railway), see [docs/deploy.md](docs/deploy.md).
 
 ## Environment variables
 

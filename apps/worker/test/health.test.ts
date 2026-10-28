@@ -112,4 +112,28 @@ describe.skipIf(!url)('health jobs (database)', () => {
     expect(h!.score).toBeLessThan(50);
     expect(await liveIds()).toEqual(['DWNews.de']);
   });
+
+  test('a stream our server cannot reach goes live once two viewer sessions play it', async () => {
+    await db.update(schema.streamHealth).set({ lastCheckedAt: sql`now() - interval '5 hours'` });
+    await runHealthBatch(db, { checker: async () => ({ ...bad, isHttps: false, hasCors: false }) });
+    await db.update(schema.streamHealth).set({ webPlayable: false });
+    await db.execute(sql`truncate playback_reports`);
+    expect(await liveIds()).toEqual([]);
+
+    const [dw] = await db
+      .select({ id: schema.streams.id })
+      .from(schema.streams)
+      .where(eq(schema.streams.channelId, 'DWNews.de'));
+    const play = (session: string) => ({
+      streamId: dw!.id,
+      platform: 'web',
+      result: 'ok' as const,
+      anonSessionHash: session,
+    });
+    await db.insert(schema.playbackReports).values([play('a')]);
+    expect((await rescore(db, [dw!.id])).changed).toBe(0); // one viewer isn't enough
+    await db.insert(schema.playbackReports).values([play('b')]);
+    expect((await rescore(db, [dw!.id])).changed).toBe(1);
+    expect(await liveIds()).toEqual(['DWNews.de']);
+  });
 });

@@ -30,3 +30,14 @@ test('player reports pull the score down once there are enough', () => {
   expect(computeScore({ checks, reportsOk: 1, reportsError: 3 })).toBe(100); // too few reports
   expect(computeScore({ checks, reportsOk: 1, reportsError: 9 })).toBe(64);
 });
+
+test('viewers confirming playback lift a stream our checker cannot reach', () => {
+  const failing = [
+    { ok: false, latencyMs: null },
+    { ok: false, latencyMs: null },
+  ];
+  expect(computeScore({ checks: failing, reportsOk: 1, reportsError: 0 })).toBeLessThan(50); // one session isn't enough
+  expect(computeScore({ checks: failing, reportsOk: 2, reportsError: 0 })).toBe(60);
+  expect(computeScore({ checks: failing, reportsOk: 2, reportsError: 5 })).toBeLessThan(50); // mostly failing for viewers
+  expect(computeScore({ checks: [], reportsOk: 3, reportsError: 1 })).toBe(60); // never checked
+});

@@ -61,17 +61,34 @@ export function Player({
   const frameRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const full = mode === 'full';
-  const streams = useMemo(() => channel.streams.filter((s) => s.webPlayable), [channel.streams]);
+  // Verified by our checker (or by viewers): tried automatically, best first.
+  const verified = useMemo(
+    () => channel.streams.filter((s) => s.webPlayable && s.score >= 50),
+    [channel.streams],
+  );
+  // Not verified, but a viewer's browser may still play them (e.g. limited to the viewer's country, or
+  // blocking our server). Only ones a browser can load at all: HTTPS on an HTTPS page, no special headers.
+  const unverified = useMemo(
+    () =>
+      channel.streams.filter(
+        (s) =>
+          !(s.webPlayable && s.score >= 50) && s.url.startsWith('https://') && !s.referrer && !s.userAgent,
+      ),
+    [channel.streams],
+  );
+  const [trying, setTrying] = useState(false);
+  const streams = trying ? unverified : verified;
   // Nothing to try: say why instead of a generic error.
-  const deadReason = streams.length
-    ? undefined
-    : channel.status === 'closed'
-      ? 'closed'
-      : channel.status === 'no_stream'
-        ? 'no_stream'
-        : channel.streams.some((s) => s.nativePlayable)
-          ? 'browser_blocked'
-          : 'offline';
+  const deadReason =
+    streams.length || trying
+      ? undefined
+      : channel.status === 'closed'
+        ? 'closed'
+        : channel.status === 'no_stream'
+          ? 'no_stream'
+          : channel.streams.some((s) => s.nativePlayable)
+            ? 'browser_blocked'
+            : 'offline';
   const [state, dispatch] = useReducer(playerReducer, streams.length, initialPlayerState);
   const { muted, volume, setMuted, setVolume, setLineup, lineup: storedLineup } = usePlayerStore();
   const [levels, setLevels] = useState<Level[]>([]);
@@ -113,8 +130,14 @@ export function Player({
     if (firstChannel.current === channel.id) return;
     firstChannel.current = channel.id;
     setNeedsTap(false);
-    dispatch({ type: 'channel', streamCount: streams.length });
-  }, [channel.id, streams.length]);
+    setTrying(false);
+    dispatch({ type: 'channel', streamCount: verified.length });
+  }, [channel.id, verified.length]);
+
+  const tryAnyway = useCallback(() => {
+    setTrying(true);
+    dispatch({ type: 'channel', streamCount: unverified.length });
+  }, [unverified.length]);
 
   // Attach the current stream. Re-runs on every attempt; the cleanup destroys the hls instance,
   // so switching channels never leaks a player.
@@ -397,6 +420,7 @@ export function Player({
           onRetry={() => dispatch({ type: 'retry' })}
           canGoNext={full && lineup.length > 1}
           deadReason={deadReason}
+          onTryAnyway={!trying && unverified.length ? tryAnyway : undefined}
           compact={!full}
         />
 

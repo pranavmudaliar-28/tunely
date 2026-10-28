@@ -188,24 +188,23 @@ export const publicRoutes =
               userAgent: schema.streams.userAgent,
             })
             .from(schema.streams)
-            .innerJoin(schema.streamHealth, eq(schema.streamHealth.streamId, schema.streams.id))
-            .where(
-              and(
-                eq(schema.streams.channelId, row.id),
-                sql`${schema.streamHealth.score} >= 50`,
-                or(eq(schema.streamHealth.webPlayable, true), eq(schema.streamHealth.nativePlayable, true)),
-              ),
-            )
+            // Every stream, not only verified ones: a viewer's browser may reach streams our server can't
+            // (geo-limited), so clients may offer "Try to play". Verified (web-playable, score >= 50) first.
+            .leftJoin(schema.streamHealth, eq(schema.streamHealth.streamId, schema.streams.id))
+            .where(eq(schema.streams.channelId, row.id))
             .orderBy(
-              desc(schema.streamHealth.webPlayable),
-              desc(schema.streamHealth.score),
-              desc(schema.streamHealth.height),
+              sql`(${schema.streamHealth.webPlayable} and ${schema.streamHealth.score} >= 50) desc nulls last`,
+              sql`${schema.streamHealth.score} desc nulls last`,
+              sql`${schema.streamHealth.height} desc nulls last`,
             );
           return {
             ...toSummary(row),
             website: row.website,
-            streams: streams.map(({ height, ...s }) => ({
+            streams: streams.map(({ height, score, webPlayable, nativePlayable, ...s }) => ({
               ...s,
+              score: score ?? 0,
+              webPlayable: webPlayable ?? false,
+              nativePlayable: nativePlayable ?? false,
               quality: s.quality ?? (height ? `${height}p` : null),
             })),
           };

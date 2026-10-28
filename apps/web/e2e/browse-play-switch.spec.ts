@@ -91,7 +91,11 @@ test('browse search box and filters always agree with the results', async ({ pag
   await box.pressSequentially('doordarshan', { delay: 20 });
   await expect(page).toHaveURL(/\/browse\?q=doordarshan$/);
   await expect(page.locator('#b-country')).toHaveValue('');
-  // Back restores both the URL and the box.
+  // Each Back undoes one action and restores both the URL and the box: first the search typed after
+  // Clear all, then Clear all itself.
+  await page.goBack();
+  await expect(page).toHaveURL(/\/browse$/);
+  await expect(box).toHaveValue('');
   await page.goBack();
   await expect(page).toHaveURL(/q=colors&country=IN/);
   await expect(box).toHaveValue('colors');

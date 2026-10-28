@@ -39,7 +39,9 @@ describe.skipIf(!url)('flushReports', () => {
       JSON.stringify({ ...ok, streamId: '00000000-0000-4000-8000-0000000000ff' }), // unknown stream
       'not json',
     );
-    expect(await flushReports(db, redis)).toBe(2);
+    const flushed = await flushReports(db, redis);
+    expect(flushed.inserted).toBe(2);
+    expect(flushed.streamIds).toEqual([stream!.id]);
     expect(await redis.llen(REPORTS_BUFFER)).toBe(0);
     const rows = await db.select().from(schema.playbackReports);
     expect(rows.map((r) => [r.result, r.errorType, r.ttffMs]).sort()).toEqual([

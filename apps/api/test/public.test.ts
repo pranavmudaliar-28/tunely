@@ -155,7 +155,7 @@ describe.skipIf(!testDbUrl)('public API', () => {
     expect(second.body).toEqual(first.body);
   });
 
-  test('channel detail returns usable streams by score; dead channels have none', async () => {
+  test('channel detail lists every stream, verified ones first', async () => {
     const { status, body } = await get('/v1/channels/DDNews.in');
     expect(status).toBe(200);
     expect(body.website).toBe('https://ddnews.gov.in/');
@@ -166,7 +166,8 @@ describe.skipIf(!testDbUrl)('public API', () => {
     ]);
     expect(body.streams[2]).toMatchObject({ webPlayable: false, nativePlayable: true, quality: '1080p' });
     const dead = await get('/v1/channels/Dead.in');
-    expect(dead.body).toMatchObject({ status: 'offline', streams: [] });
+    // Unverified streams are still returned, so clients can offer "Try to play".
+    expect(dead.body).toMatchObject({ status: 'offline', streams: [{ id: STREAM.dead, score: 30 }] });
     expect((await get('/v1/channels/Nope.xx')).status).toBe(404);
   });
 

@@ -19,7 +19,9 @@ test('ok when Redis answers and the worker beat recently', async () => {
   await redis.set(WORKER_HEARTBEAT_KEY, Date.now() - 30_000);
   const { code, body } = await details();
   expect(code).toBe(200);
-  expect(body).toMatchObject({ status: 'ok', redis: 'ok', worker: { status: 'ok', lastSeenSecondsAgo: 30 } });
+  expect(body).toMatchObject({ status: 'ok', redis: 'ok', worker: { status: 'ok' } });
+  expect(body.worker.lastSeenSecondsAgo).toBeGreaterThanOrEqual(30);
+  expect(body.worker.lastSeenSecondsAgo).toBeLessThan(35);
 });
 
 test('503 when the worker heartbeat is stale or missing', async () => {

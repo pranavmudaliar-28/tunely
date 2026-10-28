@@ -50,6 +50,9 @@ export function BrowseView({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  // History: the first search typed after any other change (a filter, Clear all) adds an entry; further
+  // typing updates that entry. Each Back then undoes exactly one action, however fast the page loads.
+  const lastWasTyping = useRef(false);
 
   // The search box is controlled, and the URL is the source of truth for what's applied. While our own
   // navigations are in flight the props lag behind, so we remember the URLs we navigated to and only
@@ -77,9 +80,11 @@ export function BrowseView({
     clearTimeout(typingTimer.current);
     intended.current = next;
     const target = browseHref(next);
+    const typedBefore = lastWasTyping.current;
+    lastWasTyping.current = replace;
     setOwnHrefs((list) => [...list.slice(-9), target]);
     startTransition(() => {
-      if (replace) router.replace(target, { scroll: false });
+      if (replace && typedBefore) router.replace(target, { scroll: false });
       else router.push(target, { scroll: false });
     });
   };
@@ -96,6 +101,7 @@ export function BrowseView({
   useEffect(() => {
     const onPop = () => {
       clearTimeout(typingTimer.current);
+      lastWasTyping.current = false;
       setOwnHrefs([]);
     };
     window.addEventListener('popstate', onPop);

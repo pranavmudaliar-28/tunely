@@ -71,10 +71,18 @@ const handlers: Record<string, Processor> = {
     await scheduleCatchUp();
     return result;
   },
-  [JOB.flushReports]: async () => ({ inserted: await flushReports(db, connection) }),
+  [JOB.flushReports]: async () => {
+    const { inserted, streamIds } = await flushReports(db, connection);
+    if (!streamIds.length) return { inserted };
+    // Viewers' plays can make a channel live (or not) right away: rescore just those streams, and
+    // rebuild the public directory only if a status actually changed.
+    const { changed } = await rescore(db, streamIds);
+    if (changed) await refreshPublicChannels(db);
+    return { inserted, changed };
+  },
   [JOB.healthScore]: async () => {
     await pruneChecks(db);
-    const rescored = await rescore(db);
+    const { scored: rescored } = await rescore(db);
     await refreshPublicChannels(db);
     return { rescored };
   },

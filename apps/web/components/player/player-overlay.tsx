@@ -41,12 +41,15 @@ export function PlayerOverlay({
   canGoNext,
   deadReason,
   compact,
+  onTryAnyway,
 }: {
   status: PlayerStatus;
   /** Set when the channel has nothing playable at all; overrides the playback error copy. */
   deadReason?: Kind;
   /** Mini player: title only, no body text. */
   compact?: boolean;
+  /** Offered when the channel has streams our server couldn't verify: try them in this browser. */
+  onTryAnyway?(): void;
   error: PlaybackError | null;
   channelName: string;
   onNext(): void;
@@ -89,7 +92,17 @@ export function PlayerOverlay({
       <Icon size={compact ? 24 : 36} className={kind === 'offline' ? 'text-warning' : 'text-text-muted'} />
       <p className="text-base font-semibold">{copy.title}</p>
       {!compact && <p className="text-text-muted text-sm">{copy.body}</p>}
-      <div className="flex gap-2 pt-1">
+      {!compact && onTryAnyway && <p className="text-text-muted text-sm">It may still play where you are.</p>}
+      <div className="flex flex-wrap justify-center gap-2 pt-1">
+        {onTryAnyway && (
+          <button
+            type="button"
+            onClick={onTryAnyway}
+            className="bg-text text-bg h-11 rounded-[8px] px-[18px] text-sm font-bold"
+          >
+            Try to play
+          </button>
+        )}
         {canGoNext && (
           <button
             type="button"

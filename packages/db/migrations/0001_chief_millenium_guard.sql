@@ -1,0 +1,1 @@
+ALTER TABLE "stream_health" ADD COLUMN "last_checked_at" timestamp with time zone;

@@ -12,3 +12,12 @@ Choices made while building, newest last.
 - **`stream_checks` is range-partitioned by month** in hand-edited SQL (Drizzle can't express partitions). A `DEFAULT` partition catches stray rows; `ensure_stream_checks_partition(ts)` creates monthly partitions.
 - **Admin endpoints use a single bearer `ADMIN_TOKEN` until Phase 5.** The value `change-me` is treated as unset, so admin is closed by default.
 - **Curation via `curate` CLI until the admin UI exists.**
+- **NAT64-aware SSRF check.** On DNS64 networks public IPv4 hosts resolve to `64:ff9b::/96`; the fetcher judges the embedded IPv4 address instead of refusing the whole range. Before this fix 3,155 streams were wrongly marked `blocked_ip`.
+- **Segment check reads the first 32 KB** of one segment (cap 5 MB), enough to prove it's served without downloading video at scale.
+- **Hand-rolled m3u8 parsing** (~40 lines) instead of `m3u8-parser`: we only need variants, resolution and one segment URI.
+- **Score** = 80 × recency-weighted check success + 20 for a fast manifest, blended 60/40 with player reports once there are ≥ 5 in 24 h; a failed latest check caps it at 40 (below the public threshold of 50). See `apps/worker/src/health/score.ts`.
+- **Playback reports go through a Redis list** (`playback-reports:buffer`, capped at 100k) and the worker flushes them every 10 s in batches; simpler than one BullMQ job per report.
+- **Rate-limit keys use a hash of the client IP**, held in Redis only for the 1-minute window. Fastify request logs omit IPs and user agents.
+- **Takedown endpoint moved to Phase 5** with its Turnstile form.
+- **Each package tests against its own database** (`<TEST_DATABASE_URL>_api`, `_worker`), created and migrated by a vitest global setup, so turbo runs them in parallel.
+- **Measured (local, 2026-10-28):** full catalog sync 40 s; full health check of 16,031 streams ≈ 25 min at concurrency 100; 50-stream browser sample in Chrome: 45/50 played (90%); cached API p95 4–7 ms, cold first page up to ~470 ms.

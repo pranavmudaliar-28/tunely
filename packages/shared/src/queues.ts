@@ -7,4 +7,10 @@ export const QUEUE = {
 
 export const JOB = {
   catalogSync: 'catalog-sync',
+  healthBatch: 'health-batch',
+  healthScore: 'health-score',
+  flushReports: 'flush-reports',
 } as const;
+
+// Redis list the API appends playback reports to; the worker drains it into Postgres in batches.
+export const REPORTS_BUFFER = 'playback-reports:buffer';

@@ -17,9 +17,15 @@ const { positionals, values } = parseArgs({
     reason: { type: 'string' },
   },
 });
-const status = positionals[0] as (typeof curationStatus)[number];
+const VERBS: Record<string, (typeof curationStatus)[number]> = {
+  approve: 'approved',
+  hide: 'hidden',
+  remove: 'removed',
+  pending: 'pending',
+};
+const status = VERBS[positionals[0] ?? ''] ?? (positionals[0] as (typeof curationStatus)[number]);
 if (!curationStatus.includes(status))
-  throw new Error(`usage: curate <${curationStatus.join('|')}> [--id X]... [--country CC] [--category slug]`);
+  throw new Error(`usage: curate <approve|hide|remove|pending> [--id X]... [--country CC] [--category slug]`);
 
 const where: SQL[] = [];
 if (values.id?.length) where.push(inArray(schema.channels.id, values.id));

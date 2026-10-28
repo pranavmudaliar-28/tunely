@@ -9,9 +9,14 @@
     "start": "node --env-file-if-exists=../../.env dist/index.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "bench": "tsx --env-file-if-exists=../../.env scripts/bench.ts"
   },
   "dependencies": {
+    "@fastify/cors": "11.3.1",
+    "@fastify/rate-limit": "11.2.1",
+    "@fastify/swagger": "9.9.2",
+    "@fastify/swagger-ui": "6.1.2",
     "@tunely/db": "workspace:*",
     "@tunely/shared": "workspace:*",
     "bullmq": "6.5.0",

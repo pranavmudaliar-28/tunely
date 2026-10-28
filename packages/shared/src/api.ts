@@ -47,9 +47,19 @@ export const ChannelListSchema = z.object({
 });
 export type ChannelList = z.infer<typeof ChannelListSchema>;
 
-export const FacetSchema = z.object({ id: z.string(), name: z.string(), count: z.number().int() });
+export const FacetSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  count: z.number().int(),
+  flag: z.string().nullable().optional(),
+});
 export type Facet = z.infer<typeof FacetSchema>;
 export const FacetListSchema = z.object({ items: z.array(FacetSchema) });
+
+export const TrendingSchema = z.object({
+  items: z.array(ChannelSummarySchema.extend({ viewers: z.number().int() })),
+});
+export type Trending = z.infer<typeof TrendingSchema>;
 
 export const PlaybackErrorTypes = [
   'offline',

@@ -12,6 +12,7 @@ import {
   timestamp,
   uuid,
   uniqueIndex,
+  pgView,
 } from 'drizzle-orm/pg-core';
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
@@ -172,6 +173,7 @@ export const streamHealth = pgTable(
     nativePlayable: boolean('native_playable').notNull().default(false),
     height: integer('height'),
     lastOkAt: timestamp('last_ok_at', { withTimezone: true }),
+    lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
     failStreak: integer('fail_streak').notNull().default(0),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -231,3 +233,23 @@ export const syncRuns = pgTable('sync_runs', {
   counts: jsonb('counts').$type<Record<string, number>>(),
   error: text('error'),
 });
+
+// ---- Public view (defined in migrations/0002_public_channels.sql) ----
+
+// The only thing public endpoints read. A channel is public when it is approved, not closed,
+// not NSFW, not blocklisted, and has a web-playable stream scoring >= 50.
+export const publicChannels = pgView('public_channels', {
+  id: text('id').notNull(),
+  name: text('name').notNull(),
+  altNames: text('alt_names').array().notNull(),
+  network: text('network'),
+  countryCode: text('country_code').notNull(),
+  categories: text('categories').array().notNull(),
+  website: text('website'),
+  languages: text('languages').array().notNull(),
+  logoUrl: text('logo_url'),
+  bestStreamId: uuid('best_stream_id').notNull(),
+  bestScore: smallint('best_score').notNull(),
+  bestHeight: integer('best_height'),
+  bestQuality: text('best_quality'),
+}).existing();

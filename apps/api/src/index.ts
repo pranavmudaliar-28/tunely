@@ -4,14 +4,28 @@ import { Queue } from 'bullmq';
 import { Redis } from 'ioredis';
 import { buildApp } from './app';
 
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) throw new Error('DATABASE_URL is not set');
+const env = (name: string) => {
+  const v = process.env[name];
+  if (!v) throw new Error(`${name} is not set`);
+  return v;
+};
 
-const { db, pool } = createDb(databaseUrl);
+const { db, pool } = createDb(env('DATABASE_URL'));
 const redis = new Redis(process.env.REDIS_URL ?? 'redis://localhost:6379', { maxRetriesPerRequest: null });
 const catalog = new Queue(QUEUE.catalog, { connection: redis });
+const corsOrigins = (process.env.CORS_ORIGINS ?? process.env.NEXT_PUBLIC_SITE_URL ?? '')
+  .split(',')
+  .filter(Boolean);
 
-const app = buildApp({ db, queues: { catalog }, adminToken: process.env.ADMIN_TOKEN });
+const app = buildApp({
+  db,
+  redis,
+  queues: { catalog },
+  adminToken: process.env.ADMIN_TOKEN,
+  reportHashSecret: env('REPORT_HASH_SECRET'),
+  corsOrigins,
+  trustProxy: process.env.TRUST_PROXY === 'true',
+});
 app.addHook('onClose', async () => {
   await catalog.close();
   await redis.quit();

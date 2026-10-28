@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "sync:once": "tsx --env-file-if-exists=../../.env scripts/sync-once.ts",
-    "curate": "tsx --env-file-if-exists=../../.env scripts/curate.ts"
+    "curate": "tsx --env-file-if-exists=../../.env scripts/curate.ts",
+    "health:once": "tsx --env-file-if-exists=../../.env scripts/health-once.ts"
   },
   "dependencies": {
     "@tunely/db": "workspace:*",
@@ -19,7 +20,9 @@
     "bullmq": "6.5.0",
     "drizzle-orm": "0.45.4",
     "ioredis": "6.0.0",
+    "ipaddr.js": "2.5.0",
     "pino": "10.4.0",
+    "undici": "8.12.3",
     "zod": "4.6.7"
   },
   "devDependencies": {

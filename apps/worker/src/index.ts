@@ -1,8 +1,10 @@
 import { JOB, QUEUE } from '@tunely/shared';
-import { Queue, Worker } from 'bullmq';
+import { Queue, Worker, type Processor } from 'bullmq';
 import { pino } from 'pino';
 import { dbFromEnv } from './db';
 import { runCatalogSync } from './jobs/catalog-sync';
+import { pruneChecks, rescore, runHealthBatch } from './jobs/health';
+import { flushReports } from './jobs/reports';
 import { createRedis } from './redis';
 
 const log = pino({ level: process.env.LOG_LEVEL ?? 'info' });
@@ -10,30 +12,60 @@ const connection = createRedis();
 const { db, pool } = dbFromEnv();
 
 const catalogQueue = new Queue(QUEUE.catalog, { connection });
-// Daily at 02:30 UTC. upsertJobScheduler is idempotent across restarts.
+const healthQueue = new Queue(QUEUE.health, { connection });
+const reportsQueue = new Queue(QUEUE.reports, { connection });
+// upsertJobScheduler is idempotent across restarts.
 await catalogQueue.upsertJobScheduler(
   'daily-catalog-sync',
   { pattern: '30 2 * * *', tz: 'UTC' },
   { name: JOB.catalogSync },
 );
-
-const catalogWorker = new Worker(
-  QUEUE.catalog,
-  async (job) => {
-    if (job.name !== JOB.catalogSync) return;
-    const counts = await runCatalogSync(db);
-    log.info({ counts }, 'catalog sync finished');
-    return counts;
-  },
-  { connection, concurrency: 1 },
+// 1000 streams every 15 min checks ~16k streams within the 4 h recheck window.
+await healthQueue.upsertJobScheduler('health-batch', { every: 15 * 60_000 }, { name: JOB.healthBatch });
+await reportsQueue.upsertJobScheduler(
+  'flush-reports',
+  { every: 10_000 },
+  { name: JOB.flushReports, opts: { removeOnComplete: true, removeOnFail: 100 } },
 );
-catalogWorker.on('failed', (job, err) => log.error({ job: job?.id, err }, 'catalog sync failed'));
+await healthQueue.upsertJobScheduler(
+  'health-score',
+  { pattern: '5 * * * *', tz: 'UTC' },
+  { name: JOB.healthScore },
+);
+
+const handlers: Record<string, Processor> = {
+  [JOB.catalogSync]: () => runCatalogSync(db),
+  [JOB.healthBatch]: () => runHealthBatch(db),
+  [JOB.flushReports]: async () => ({ inserted: await flushReports(db, connection) }),
+  [JOB.healthScore]: async () => {
+    await pruneChecks(db);
+    return { rescored: await rescore(db) };
+  },
+};
+
+const process_: Processor = async (job, token) => {
+  const handler = handlers[job.name];
+  if (!handler) throw new Error(`unknown job ${job.name}`);
+  const started = Date.now();
+  const result = await handler(job, token);
+  if (job.name !== JOB.flushReports)
+    log.info({ job: job.name, ms: Date.now() - started, result }, 'job finished');
+  return result;
+};
+
+const workers = [
+  new Worker(QUEUE.catalog, process_, { connection, concurrency: 1 }),
+  // Health batches must not overlap: the "due" query would hand both the same streams.
+  new Worker(QUEUE.health, process_, { connection, concurrency: 1, lockDuration: 10 * 60_000 }),
+  new Worker(QUEUE.reports, process_, { connection, concurrency: 1 }),
+];
+for (const w of workers) w.on('failed', (job, err) => log.error({ job: job?.name, err }, 'job failed'));
 
 log.info('worker started');
 
 const shutdown = async () => {
-  await catalogWorker.close();
-  await catalogQueue.close();
+  await Promise.all(workers.map((w) => w.close()));
+  await Promise.all([catalogQueue.close(), healthQueue.close(), reportsQueue.close()]);
   await pool.end();
   await connection.quit();
   process.exit(0);

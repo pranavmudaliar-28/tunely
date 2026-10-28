@@ -1,6 +1,6 @@
 import { refreshPublicChannels } from '@tunely/db';
 import { sql } from 'drizzle-orm';
-import { JOB, QUEUE, WORKER_HEARTBEAT_EVERY_S, WORKER_HEARTBEAT_KEY } from '@tunely/shared';
+import { JOB, QUEUE, WORKER_HEARTBEAT_EVERY_S, WORKER_HEARTBEAT_KEY, WORKER_JOBS_KEY } from '@tunely/shared';
 import { Queue, Worker, type Processor } from 'bullmq';
 import { pino } from 'pino';
 import { config } from './config';
@@ -62,10 +62,27 @@ const process_: Processor = async (job, token) => {
   const handler = handlers[job.name];
   if (!handler) throw new Error(`unknown job ${job.name}`);
   const started = Date.now();
-  const result = await handler(job, token);
   if (job.name !== JOB.flushReports)
-    log.info({ job: job.name, ms: Date.now() - started, result }, 'job finished');
-  return result;
+    void connection.hset(WORKER_JOBS_KEY, `${job.name}:running`, new Date().toISOString()).catch(() => {});
+  const record = (entry: Record<string, unknown>) =>
+    connection
+      .hset(
+        WORKER_JOBS_KEY,
+        job.name,
+        JSON.stringify({ at: new Date().toISOString(), ms: Date.now() - started, ...entry }),
+      )
+      .catch(() => {});
+  try {
+    const result = await handler(job, token);
+    if (job.name !== JOB.flushReports) {
+      log.info({ job: job.name, ms: Date.now() - started, result }, 'job finished');
+      await record({ ok: true, result });
+    }
+    return result;
+  } catch (err) {
+    await record({ ok: false, error: String(err).slice(0, 300) });
+    throw err;
+  }
 };
 
 const workers = [

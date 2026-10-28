@@ -46,9 +46,31 @@ await healthQueue.upsertJobScheduler(
   { name: JOB.healthScore },
 );
 
+// Catch-up: while some streams have never been checked (fresh database, new catalog entries), run the
+// next batch right away instead of waiting for the regular schedule, so a new deploy goes live in
+// minutes rather than hours. Steady state falls back to HEALTH_BATCH_EVERY_MIN.
+async function scheduleCatchUp() {
+  const [row] = (
+    await db.execute<{ n: number }>(
+      sql`select count(*)::int as n from streams s left join stream_health h on h.stream_id = s.id where h.stream_id is null`,
+    )
+  ).rows;
+  if (!row?.n) return;
+  log.info({ unchecked: row.n }, 'unchecked streams: running another health batch now');
+  await healthQueue.add(JOB.healthBatch, {}, { delay: 5_000, removeOnComplete: true, removeOnFail: 20 });
+}
+
 const handlers: Record<string, Processor> = {
-  [JOB.catalogSync]: () => runCatalogSync(db),
-  [JOB.healthBatch]: () => runHealthBatch(db, { limit: config.healthBatchSize }),
+  [JOB.catalogSync]: async () => {
+    const counts = await runCatalogSync(db);
+    await scheduleCatchUp(); // new streams have never been checked
+    return counts;
+  },
+  [JOB.healthBatch]: async () => {
+    const result = await runHealthBatch(db, { limit: config.healthBatchSize });
+    await scheduleCatchUp();
+    return result;
+  },
   [JOB.flushReports]: async () => ({ inserted: await flushReports(db, connection) }),
   [JOB.healthScore]: async () => {
     await pruneChecks(db);

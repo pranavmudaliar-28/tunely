@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 import { BrowsePage } from '@/components/channel/browse-page';
 import { countryName } from '@/lib/format';
 
-export const revalidate = 1800;
+// Channel statuses change as streams are checked: refresh every 5 minutes.
+export const revalidate = 300;
 export const generateStaticParams = async () => [];
 
 type Props = { params: Promise<{ code: string }> };

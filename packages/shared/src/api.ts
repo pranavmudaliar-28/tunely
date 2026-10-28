@@ -94,4 +94,4 @@ export type PlaybackReport = z.infer<typeof PlaybackReportSchema>;
  * the API keys its Redis cache on it and the web app sends it with every request, so both the
  * Redis cache and Next's data cache start fresh instead of serving data in the old form.
  */
-export const API_DATA_VERSION = 4;
+export const API_DATA_VERSION = 5;

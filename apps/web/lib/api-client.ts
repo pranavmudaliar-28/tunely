@@ -21,6 +21,8 @@ const API_URL =
 
 /** Revalidation window for server-rendered catalog pages (seconds). */
 export const CATALOG_REVALIDATE = 1800;
+/** Channel lists change as streams are checked; keep them fresh (the API also caches for 5 min). */
+export const LIST_REVALIDATE = 300;
 
 export class ApiError extends Error {
   constructor(public status: number) {
@@ -63,8 +65,10 @@ export function channelsPath(f: ChannelFilters) {
 const isr = { next: { revalidate: CATALOG_REVALIDATE } };
 
 export const api = {
-  channels: (f: ChannelFilters = {}, init = isr): Promise<ChannelList> =>
-    getJson(channelsPath(f), ChannelListSchema, init),
+  channels: (
+    f: ChannelFilters = {},
+    init = { next: { revalidate: LIST_REVALIDATE } },
+  ): Promise<ChannelList> => getJson(channelsPath(f), ChannelListSchema, init),
   channel: (id: string, init = { next: { revalidate: 300 } }): Promise<Channel> =>
     getJson(`/v1/channels/${encodeURIComponent(id)}`, ChannelSchema, init),
   related: (id: string, init = isr): Promise<ChannelList> =>

@@ -30,7 +30,8 @@ export async function BrowsePage({
         </nav>
         <h1 className="text-[32px] font-bold tracking-[-0.02em]">{title}</h1>
         <p className="text-text-muted text-[15px]">
-          {intro ?? 'Only channels that are playing right now are shown.'}
+          {intro ??
+            'Every channel we know of. Live ones come first; the rest are labelled offline, no stream or closed.'}
         </p>
       </div>
       <BrowseView filters={filters} firstPage={firstPage} facets={{ countries, categories, languages }} />

@@ -14,6 +14,10 @@ export const StreamSchema = z.object({
 });
 export type Stream = z.infer<typeof StreamSchema>;
 
+/** live: plays in the browser now · offline: has streams, none working · no_stream · closed: off air for good */
+export const ChannelStatusSchema = z.enum(['live', 'offline', 'no_stream', 'closed']);
+export type ChannelStatus = z.infer<typeof ChannelStatusSchema>;
+
 export const ChannelSummarySchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -22,6 +26,7 @@ export const ChannelSummarySchema = z.object({
   languages: z.array(z.string()),
   logo: z.string().nullable(),
   quality: z.string().nullable(),
+  status: ChannelStatusSchema,
 });
 export type ChannelSummary = z.infer<typeof ChannelSummarySchema>;
 
@@ -36,6 +41,7 @@ export const ChannelListQuerySchema = z.object({
   category: z.string().max(40).optional(),
   language: z.string().max(3).optional(),
   q: z.string().trim().min(1).max(80).optional(),
+  status: ChannelStatusSchema.optional(),
   cursor: z.string().max(200).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(48),
 });

@@ -1,4 +1,4 @@
-import { schema, type Db } from '@tunely/db';
+import { refreshPublicChannels, schema, type Db } from '@tunely/db';
 import {
   IPTV_FILES,
   parseRows,
@@ -326,6 +326,7 @@ export async function runCatalogSync(db: Db, raw?: RawCatalog): Promise<Record<s
   const [run] = await db.insert(schema.syncRuns).values({}).returning({ id: schema.syncRuns.id });
   try {
     const counts = await writeCatalog(db, prepareCatalog(raw ?? (await downloadCatalog())));
+    await refreshPublicChannels(db);
     await db
       .update(schema.syncRuns)
       .set({ status: 'ok', finishedAt: new Date(), counts })

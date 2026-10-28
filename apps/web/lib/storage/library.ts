@@ -29,6 +29,7 @@ const snapshot = ({
   languages,
   logo,
   quality,
+  status,
 }: ChannelSummary): ChannelSummary => ({
   id,
   name,
@@ -37,6 +38,7 @@ const snapshot = ({
   languages,
   logo,
   quality,
+  status,
 });
 const EMPTY: Library = { favorites: [], history: [] };
 

@@ -1,4 +1,4 @@
-import { schema, type Db } from '@tunely/db';
+import { refreshPublicChannels, schema, type Db } from '@tunely/db';
 import { sql } from 'drizzle-orm';
 import { checkStream, isWebPlayable, type CheckResult, type StreamInput } from '../health/check-stream';
 import { computeScore } from '../health/score';
@@ -44,6 +44,7 @@ export async function runHealthBatch(
     if (isWebPlayable(r)) web++;
   });
   await rescore(db, checkedIds);
+  await refreshPublicChannels(db);
   return { checked: checkedIds.length, ok, webPlayable: web };
 }
 

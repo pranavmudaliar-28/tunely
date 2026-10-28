@@ -5,6 +5,7 @@ import {
   TrendingSchema,
   type Channel,
   type ChannelList,
+  type ChannelStatus,
   type Facet,
   type PlaybackReport,
   type Trending,
@@ -41,6 +42,8 @@ export interface ChannelFilters {
   category?: string;
   language?: string;
   q?: string;
+  /** 'live' = playable now; omit for the full directory */
+  status?: ChannelStatus;
   cursor?: string;
   limit?: number;
 }

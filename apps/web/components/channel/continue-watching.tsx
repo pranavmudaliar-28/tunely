@@ -26,7 +26,7 @@ export function ContinueWatching() {
               className="text-text flex flex-col gap-2.5 no-underline"
             >
               <ChannelLogo id={channel.id} name={channel.name} logo={channel.logo}>
-                <LiveBadge />
+                <LiveBadge status={channel.status} />
               </ChannelLogo>
               <span className="flex flex-col gap-0.5">
                 <span className="text-[15px] font-semibold">{channel.name}</span>

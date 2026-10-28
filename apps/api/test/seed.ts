@@ -1,4 +1,4 @@
-import type { Db } from '@tunely/db';
+import { refreshPublicChannels, type Db } from '@tunely/db';
 import { sql } from 'drizzle-orm';
 
 export const STREAM = {
@@ -12,7 +12,7 @@ export const STREAM = {
   ddn: '00000000-0000-4000-8000-000000000008',
 };
 
-/** Six channels: four public, plus one pending and one whose only stream scores under 50. */
+/** Six channels: five live (one still pending review) and one offline (its only stream scores under 50). */
 export async function seed(db: Db) {
   await db.execute(sql`truncate channels, feeds, streams, logos, countries, categories, languages, blocklist,
     channel_curation, stream_health, stream_checks, playback_reports`);
@@ -51,4 +51,5 @@ export async function seed(db: Db) {
     (${STREAM.dd}, 95, true, true, 720), (${STREAM.ddBackup}, 70, true, true, 576), (${STREAM.native}, 90, false, true, 1080),
     (${STREAM.ddn}, 80, true, true, null), (${STREAM.dw}, 99, true, true, 1080), (${STREAM.f24}, 60, true, true, 360),
     (${STREAM.pending}, 99, true, true, 720), (${STREAM.dead}, 30, true, true, 720)`);
+  await refreshPublicChannels(db);
 }

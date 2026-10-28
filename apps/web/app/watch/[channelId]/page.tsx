@@ -9,6 +9,13 @@ import { api, ApiError } from '@/lib/api-client';
 import { channelMeta, countryName } from '@/lib/format';
 
 export const revalidate = 300;
+
+const STATUS_TEXT = {
+  live: 'Online',
+  offline: 'Offline',
+  no_stream: 'No stream available',
+  closed: 'Closed',
+} as const;
 export const generateStaticParams = async () => [];
 
 type Props = { params: Promise<{ channelId: string }> };
@@ -31,6 +38,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description,
     alternates: { canonical: `/watch/${encodeURIComponent(c.id)}` },
     openGraph: { title, description, images: c.logo ? [{ url: c.logo }] : undefined },
+    // Keep channels that can't play out of search results.
+    robots: c.status === 'live' ? undefined : { index: false },
   };
 }
 
@@ -55,11 +64,13 @@ export default async function WatchPage({ params }: Props) {
           <h1 className="text-[32px] font-extrabold tracking-[-0.02em]">{channel.name}</h1>
           <p className="text-text-muted flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
             <span>{meta}</span>
-            {best && (
+            {best ? (
               <StatusDot
                 status={best.score >= 80 ? 'online' : 'unstable'}
                 label={best.score >= 80 ? 'Online' : 'Unstable'}
               />
+            ) : (
+              <StatusDot status="offline" label={STATUS_TEXT[channel.status]} />
             )}
           </p>
           {channel.website && (

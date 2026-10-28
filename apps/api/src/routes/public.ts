@@ -9,7 +9,7 @@ import {
   TrendingSchema,
   type ChannelSummary,
 } from '@tunely/shared';
-import { and, arrayContains, asc, desc, eq, gt, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, arrayContains, asc, desc, eq, ne, or, sql, type SQL } from 'drizzle-orm';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
@@ -28,11 +28,13 @@ const toSummary = (r: Row): ChannelSummary => ({
   languages: r.languages,
   logo: r.logoUrl,
   quality: r.bestQuality ?? (r.bestHeight ? `${r.bestHeight}p` : null),
+  status: r.status,
 });
 
-// Cursor: keyset on (name, id) for browsing; offset for search, which is ordered by relevance.
+// Cursor: keyset on (status rank, name, id) for browsing, so live channels come first; offset for
+// search, which is ordered by relevance.
 const Cursor = z.union([
-  z.object({ n: z.string(), i: z.string() }),
+  z.object({ r: z.number().int().min(0).max(9), n: z.string(), i: z.string() }),
   z.object({ o: z.number().int().min(0).max(10_000) }),
 ]);
 const encodeCursor = (c: z.infer<typeof Cursor>) => Buffer.from(JSON.stringify(c)).toString('base64url');
@@ -78,6 +80,7 @@ export const publicRoutes =
           if (q.country) where.push(eq(pc.countryCode, q.country));
           if (q.category) where.push(arrayContains(pc.categories, [q.category]));
           if (q.language) where.push(arrayContains(pc.languages, [q.language]));
+          if (q.status) where.push(eq(pc.status, q.status));
 
           if (q.q) {
             const term = q.q;
@@ -91,7 +94,10 @@ export const publicRoutes =
               .from(pc)
               .where(and(...where))
               .orderBy(
+                // Names starting with the term first (even if dead: that's the channel they asked for),
+                // then live before dead, then fuzzy similarity.
                 desc(sql`(${pc.name} ilike ${term + '%'})`),
+                asc(pc.statusRank),
                 desc(sql`similarity(${pc.name}, ${term})`),
                 asc(pc.id),
               )
@@ -104,19 +110,24 @@ export const publicRoutes =
           }
 
           if (cursor && 'n' in cursor) {
-            where.push(or(gt(pc.name, cursor.n), and(eq(pc.name, cursor.n), gt(pc.id, cursor.i)))!);
+            where.push(
+              sql`(${pc.statusRank}, ${pc.name}, ${pc.id}) > (${cursor.r}, ${cursor.n}, ${cursor.i})`,
+            );
           }
           const rows = await db
             .select()
             .from(pc)
             .where(and(...where))
-            .orderBy(asc(pc.name), asc(pc.id))
+            .orderBy(asc(pc.statusRank), asc(pc.name), asc(pc.id))
             .limit(q.limit + 1);
           const items = rows.slice(0, q.limit);
           const last = items.at(-1);
           return {
             items: items.map(toSummary),
-            nextCursor: rows.length > q.limit && last ? encodeCursor({ n: last.name, i: last.id }) : null,
+            nextCursor:
+              rows.length > q.limit && last
+                ? encodeCursor({ r: last.statusRank, n: last.name, i: last.id })
+                : null,
           };
         });
       },
@@ -201,7 +212,8 @@ export const publicRoutes =
           const rows = await db
             .select()
             .from(pc)
-            .where(and(ne(pc.id, row.id), or(sameCountry, sameCategory)))
+            // Live only: related channels double as the player's channel up/down list.
+            .where(and(ne(pc.id, row.id), eq(pc.status, 'live'), or(sameCountry, sameCategory)))
             .orderBy(
               desc(sql`(${sameCountry} and ${sameCategory})`),
               desc(sameCountry),
@@ -264,12 +276,12 @@ export const publicRoutes =
         cached(redis, cacheKey(req.url), reply, async () => {
           const rows = await db.execute<Row & { viewers: number }>(sql`
             select p.id, p.name, p.country_code as "countryCode", p.categories, p.languages, p.logo_url as "logoUrl",
-                   p.best_quality as "bestQuality", p.best_height as "bestHeight", count(distinct r.anon_session_hash)::int as viewers
+                   p.best_quality as "bestQuality", p.best_height as "bestHeight", p.status, count(distinct r.anon_session_hash)::int as viewers
             from playback_reports r
             join streams s on s.id = r.stream_id
             join public_channels p on p.id = s.channel_id
-            where r.result = 'ok' and r.created_at > now() - interval '24 hours'
-            group by p.id, p.name, p.country_code, p.categories, p.languages, p.logo_url, p.best_quality, p.best_height
+            where r.result = 'ok' and r.created_at > now() - interval '24 hours' and p.status = 'live'
+            group by p.id, p.name, p.country_code, p.categories, p.languages, p.logo_url, p.best_quality, p.best_height, p.status
             order by viewers desc, p.name
             limit 24`);
           return { items: rows.rows.map((r) => ({ ...toSummary(r), viewers: Number(r.viewers) })) };

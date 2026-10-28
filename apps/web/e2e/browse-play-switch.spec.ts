@@ -25,7 +25,8 @@ test('home → play in at most 2 clicks → switch channel', async ({ page }) =>
       .toBeGreaterThan(0);
   }
 
-  // Channel down with the keyboard.
+  // Channel down with the keyboard (shortcuts exist once the player has hydrated).
+  await page.locator('section[data-hydrated]').waitFor();
   await page
     .locator('body')
     .click({ position: { x: 5, y: 5 } })
@@ -35,6 +36,7 @@ test('home → play in at most 2 clicks → switch channel', async ({ page }) =>
   await expect(page.getByRole('heading', { level: 1 })).not.toHaveText(firstTitle ?? '');
 
   // And back up.
+  await page.locator('section[data-hydrated]').waitFor();
   await page.keyboard.press('ArrowUp');
   await expect(page).toHaveURL(firstUrl);
 });

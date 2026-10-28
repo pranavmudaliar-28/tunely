@@ -4,7 +4,7 @@ import type { Channel, ChannelSummary } from '@tunely/shared';
 import type Hls from 'hls.js';
 import type { Events } from 'hls.js';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from 'react';
 import { sendPlaybackReport } from '@/lib/api-client';
 import { attachStream, preloadHls, type PlaybackError } from '@/lib/player/attach';
 import { initialPlayerState, playerReducer } from '@/lib/player/state';
@@ -25,6 +25,7 @@ import { PlayerOverlay } from './player-overlay';
 import Link from 'next/link';
 
 const LOAD_TIMEOUT_MS = 10_000;
+const noopSubscribe = () => () => {};
 
 // Begin fetching hls.js as soon as this module loads in the browser, in parallel with hydration.
 if (typeof window !== 'undefined') void preloadHls();
@@ -48,11 +49,27 @@ export function Player({
   const frameRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const streams = useMemo(() => channel.streams.filter((s) => s.webPlayable), [channel.streams]);
+  // Nothing to try: say why instead of a generic error.
+  const deadReason = streams.length
+    ? undefined
+    : channel.status === 'closed'
+      ? 'closed'
+      : channel.status === 'no_stream'
+        ? 'no_stream'
+        : channel.streams.some((s) => s.nativePlayable)
+          ? 'browser_blocked'
+          : 'offline';
   const [state, dispatch] = useReducer(playerReducer, streams.length, initialPlayerState);
   const { muted, volume, setMuted, setVolume, setLineup, lineup: storedLineup } = usePlayerStore();
   const [levels, setLevels] = useState<Level[]>([]);
   const [level, setLevel] = useState(-1);
   const [needsTap, setNeedsTap] = useState(false);
+  // Lets tests (and TV remotes' first keypress) know the shortcuts are live.
+  const hydrated = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
 
   const summary: ChannelSummary = useMemo(() => {
     const { streams: _s, website: _w, ...rest } = channel;
@@ -254,7 +271,7 @@ export function Player({
     'flex size-11 items-center justify-center rounded-[8px] text-[#F2F4F8] hover:bg-white/10 sm:size-12';
 
   return (
-    <section aria-label={`${channel.name} player`} className="relative">
+    <section aria-label={`${channel.name} player`} className="relative" data-hydrated={hydrated || undefined}>
       <div
         ref={frameRef}
         className="relative aspect-video w-full overflow-hidden bg-black min-[720px]:rounded-none"
@@ -296,6 +313,7 @@ export function Player({
           onNext={() => go(1)}
           onRetry={() => dispatch({ type: 'retry' })}
           canGoNext={lineup.length > 1}
+          deadReason={deadReason}
         />
 
         {needsTap && playing && (

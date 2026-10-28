@@ -2,7 +2,7 @@
 //   pnpm --filter @tunely/worker curate approve --id DDNews.in --id DWNews.de
 //   pnpm --filter @tunely/worker curate approve --country IN --category news
 //   pnpm --filter @tunely/worker curate hide --id Foo.us --reason "pay-tv"
-import { schema } from '@tunely/db';
+import { refreshPublicChannels, schema } from '@tunely/db';
 import { curationStatus } from '@tunely/db/schema';
 import { and, arrayContains, eq, inArray, type SQL } from 'drizzle-orm';
 import { parseArgs } from 'node:util';
@@ -46,5 +46,7 @@ if (ids.length) {
     .set({ status, reason: values.reason ?? null, reviewedBy: 'cli', reviewedAt: new Date() })
     .where(inArray(schema.channelCuration.channelId, ids));
 }
+// Hide/remove must take effect on the site immediately (takedowns).
+await refreshPublicChannels(db);
 console.log(`${status}: ${ids.length} channel(s)`);
 await pool.end();

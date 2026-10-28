@@ -37,7 +37,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     );
     let cursor: string | undefined;
     for (let i = 0; i < MAX_CHANNEL_PAGES; i++) {
-      const page = await api.channels({ limit: 100, cursor });
+      const page = await api.channels({ status: 'live', limit: 100, cursor });
       entries.push(
         ...page.items.map((c) => ({
           url: `${site}/watch/${encodeURIComponent(c.id)}`,

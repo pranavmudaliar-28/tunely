@@ -1,4 +1,4 @@
-import { createDb, schema } from '@tunely/db';
+import { createDb, refreshPublicChannels, schema } from '@tunely/db';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import type { CheckResult } from '../src/health/check-stream';
@@ -41,17 +41,34 @@ describe.skipIf(!url)('health jobs (database)', () => {
     await pool.end();
   });
 
-  const publicIds = async () =>
-    (await db.select({ id: schema.publicChannels.id }).from(schema.publicChannels)).map((r) => r.id).sort();
+  const liveIds = async () => {
+    await refreshPublicChannels(db);
+    return (
+      await db
+        .select({ id: schema.publicChannels.id })
+        .from(schema.publicChannels)
+        .where(eq(schema.publicChannels.status, 'live'))
+    )
+      .map((r) => r.id)
+      .sort();
+  };
 
-  test('every stream gets a health row; only approved, healthy channels become public', async () => {
+  test('every stream gets a health row; only healthy channels are live; hidden ones vanish', async () => {
     const res = await runHealthBatch(db, { checker: async (s) => (s.url.includes('dw') ? bad : good) });
     expect(res).toMatchObject({ checked: 2, ok: 1, webPlayable: 1 });
     expect(await db.$count(schema.streamHealth)).toBe(await db.$count(schema.streams));
 
-    expect(await publicIds()).toEqual([]); // still pending
+    expect(await liveIds()).toEqual(['DDNews.in']); // DW's only stream failed
+    const listed = await db.select().from(schema.publicChannels);
+    expect(listed.find((c) => c.id === 'DWNews.de')?.status).toBe('offline');
+
+    await db
+      .update(schema.channelCuration)
+      .set({ status: 'hidden' })
+      .where(eq(schema.channelCuration.channelId, 'DDNews.in'));
+    expect(await liveIds()).toEqual([]);
     await db.update(schema.channelCuration).set({ status: 'approved' });
-    expect(await publicIds()).toEqual(['DDNews.in']); // DW's only stream failed
+    await refreshPublicChannels(db);
 
     const [dd] = await db
       .select()
@@ -72,11 +89,11 @@ describe.skipIf(!url)('health jobs (database)', () => {
   test('a failing latest check hides the channel; bad player reports lower the score', async () => {
     await db.update(schema.streamHealth).set({ lastCheckedAt: sql`now() - interval '5 hours'` });
     await runHealthBatch(db, { checker: async () => bad });
-    expect(await publicIds()).toEqual([]);
+    expect(await liveIds()).toEqual([]);
 
     await db.update(schema.streamHealth).set({ lastCheckedAt: sql`now() - interval '5 hours'` });
     await runHealthBatch(db, { checker: async () => good });
-    expect(await publicIds()).toEqual(['DDNews.in', 'DWNews.de']);
+    expect(await liveIds()).toEqual(['DDNews.in', 'DWNews.de']);
 
     const [dd] = await db
       .select({ id: schema.streams.id })
@@ -93,6 +110,6 @@ describe.skipIf(!url)('health jobs (database)', () => {
     await rescore(db);
     const [h] = await db.select().from(schema.streamHealth).where(eq(schema.streamHealth.streamId, dd!.id));
     expect(h!.score).toBeLessThan(50);
-    expect(await publicIds()).toEqual(['DWNews.de']);
+    expect(await liveIds()).toEqual(['DWNews.de']);
   });
 });

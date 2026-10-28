@@ -80,3 +80,16 @@ test('neighbour wraps around the lineup', () => {
   expect(neighbour(lineup, 'c', 1)).toBe('a');
   expect(neighbour(lineup, 'x', 1)).toBeNull();
 });
+
+test('neighbour skips channels that are not live', () => {
+  const lineup = [
+    { id: 'a' },
+    { id: 'b', status: 'offline' },
+    { id: 'c', status: 'live' },
+    { id: 'd', status: 'no_stream' },
+  ];
+  expect(neighbour(lineup, 'a', 1)).toBe('c');
+  expect(neighbour(lineup, 'a', -1)).toBe('c');
+  expect(neighbour(lineup, 'c', 1)).toBe('a');
+  expect(neighbour([{ id: 'a' }, { id: 'b', status: 'closed' }], 'a', 1)).toBeNull();
+});

@@ -1,3 +1,4 @@
+import { refreshPublicChannels } from '@tunely/db';
 import { REPORTS_BUFFER } from '@tunely/shared';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest';
@@ -25,10 +26,18 @@ describe.skipIf(!testDbUrl)('public API', () => {
     await pool.end();
   });
 
-  test('lists only public channels, alphabetically', async () => {
+  test('lists every channel, live ones first, then A–Z', async () => {
     const { status, body } = await get('/v1/channels');
     expect(status).toBe(200);
-    expect(ids(body)).toEqual(['DDNational.in', 'DDNews.in', 'DWNews.de', 'France24.fr']);
+    expect(ids(body)).toEqual([
+      'DDNational.in',
+      'DDNews.in',
+      'DWNews.de',
+      'France24.fr',
+      'Pending.in',
+      'Dead.in',
+    ]);
+    expect(body.items.at(-1)).toMatchObject({ id: 'Dead.in', status: 'offline', quality: null });
     expect(body.items[1]).toEqual({
       id: 'DDNews.in',
       name: 'DD News',
@@ -37,30 +46,54 @@ describe.skipIf(!testDbUrl)('public API', () => {
       languages: ['hin'],
       logo: 'https://example.com/dd.png',
       quality: '720p',
+      status: 'live',
     });
   });
 
+  test('channels a curator hid or removed disappear', async () => {
+    await db.execute(sql`update channel_curation set status = 'removed' where channel_id = 'Pending.in'`);
+    await refreshPublicChannels(db);
+    expect(ids((await get('/v1/channels')).body)).not.toContain('Pending.in');
+    expect((await get('/v1/channels/Pending.in')).status).toBe(404);
+    await db.execute(sql`update channel_curation set status = 'pending' where channel_id = 'Pending.in'`);
+    await refreshPublicChannels(db);
+    await redis.flushdb();
+  });
+
   test('filters by country, category and language', async () => {
-    expect(ids((await get('/v1/channels?country=in')).body)).toEqual(['DDNational.in', 'DDNews.in']);
+    expect(ids((await get('/v1/channels?country=in')).body)).toEqual([
+      'DDNational.in',
+      'DDNews.in',
+      'Pending.in',
+      'Dead.in',
+    ]);
     expect(ids((await get('/v1/channels?category=news')).body)).toEqual([
       'DDNews.in',
       'DWNews.de',
       'France24.fr',
+      'Pending.in',
+      'Dead.in',
     ]);
+    expect(ids((await get('/v1/channels?country=IN&status=live')).body)).toEqual([
+      'DDNational.in',
+      'DDNews.in',
+      'Pending.in',
+    ]);
+    expect(ids((await get('/v1/channels?status=offline')).body)).toEqual(['Dead.in']);
     expect(ids((await get('/v1/channels?language=eng')).body)).toEqual(['DWNews.de', 'France24.fr']);
   });
 
   test('searches names and alternative names', async () => {
     expect(ids((await get('/v1/channels?q=dd%20n')).body).sort()).toEqual(['DDNational.in', 'DDNews.in']);
     expect(ids((await get('/v1/channels?q=doordarshan')).body)).toEqual(['DDNational.in']);
-    expect(ids((await get('/v1/channels?q=pending')).body)).toEqual([]);
+    expect(ids((await get('/v1/channels?q=pending')).body)).toEqual(['Pending.in']);
   });
 
   test('paginates with a cursor', async () => {
     const p1 = (await get('/v1/channels?limit=3')).body;
     expect(p1.items).toHaveLength(3);
     const p2 = (await get(`/v1/channels?limit=3&cursor=${p1.nextCursor}`)).body;
-    expect(ids(p2)).toEqual(['France24.fr']);
+    expect(ids(p2)).toEqual(['France24.fr', 'Pending.in', 'Dead.in']);
     expect(p2.nextCursor).toBeNull();
     const s1 = (await get('/v1/channels?q=dd&limit=1')).body;
     const s2 = (await get(`/v1/channels?q=dd&limit=1&cursor=${s1.nextCursor}`)).body;
@@ -80,7 +113,7 @@ describe.skipIf(!testDbUrl)('public API', () => {
     expect(second.body).toEqual(first.body);
   });
 
-  test('channel detail returns usable streams by score; hidden channels 404', async () => {
+  test('channel detail returns usable streams by score; dead channels have none', async () => {
     const { status, body } = await get('/v1/channels/DDNews.in');
     expect(status).toBe(200);
     expect(body.website).toBe('https://ddnews.gov.in/');
@@ -90,25 +123,26 @@ describe.skipIf(!testDbUrl)('public API', () => {
       STREAM.native,
     ]);
     expect(body.streams[2]).toMatchObject({ webPlayable: false, nativePlayable: true, quality: '1080p' });
-    expect((await get('/v1/channels/Pending.in')).status).toBe(404);
-    expect((await get('/v1/channels/Dead.in')).status).toBe(404);
+    const dead = await get('/v1/channels/Dead.in');
+    expect(dead.body).toMatchObject({ status: 'offline', streams: [] });
     expect((await get('/v1/channels/Nope.xx')).status).toBe(404);
   });
 
   test('related channels share country or category', async () => {
     const { body } = await get('/v1/channels/DDNews.in/related');
-    expect(ids(body)).toEqual(['DDNational.in', 'DWNews.de', 'France24.fr']);
-    expect((await get('/v1/channels/Pending.in/related')).status).toBe(404);
+    // Live only (it doubles as the player's channel list): Pending shares country and category, so it leads.
+    expect(ids(body)).toEqual(['Pending.in', 'DDNational.in', 'DWNews.de', 'France24.fr']);
+    expect((await get('/v1/channels/Nope.xx/related')).status).toBe(404);
   });
 
-  test('facets count public channels only', async () => {
+  test('facets count listed channels', async () => {
     expect((await get('/v1/countries')).body.items).toEqual([
-      { id: 'IN', name: 'India', flag: 'IN-flag', count: 2 },
+      { id: 'IN', name: 'India', flag: 'IN-flag', count: 4 },
       { id: 'FR', name: 'France', flag: 'FR-flag', count: 1 },
       { id: 'DE', name: 'Germany', flag: 'DE-flag', count: 1 },
     ]);
     expect((await get('/v1/categories')).body.items).toEqual([
-      { id: 'news', name: 'News', count: 3 },
+      { id: 'news', name: 'News', count: 5 },
       { id: 'general', name: 'General', count: 1 },
     ]);
     expect((await get('/v1/languages')).body.items).toEqual([
@@ -128,6 +162,7 @@ describe.skipIf(!testDbUrl)('public API', () => {
     expect(body.items.map((i: { id: string; viewers: number }) => [i.id, i.viewers])).toEqual([
       ['DWNews.de', 2],
       ['DDNews.in', 1],
+      ['Pending.in', 1],
     ]);
   });
 

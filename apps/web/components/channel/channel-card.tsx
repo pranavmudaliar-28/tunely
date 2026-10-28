@@ -20,6 +20,7 @@ export interface CardProps {
 export function ChannelCard({ channel, lineup, meta, variant = 'rail', eager }: CardProps) {
   const setLineup = usePlayerStore((s) => s.setLineup);
   const subtitle = meta ?? channelMeta(channel);
+  const live = (channel.status ?? 'live') === 'live';
   return (
     <div
       className={cn(
@@ -41,10 +42,12 @@ export function ChannelCard({ channel, lineup, meta, variant = 'rail', eager }: 
           className={cn(
             'ring-text/0 transition duration-200 ease-out group-hover:-translate-y-0.5 group-hover:shadow-xl group-hover:shadow-black/40 group-hover:ring-2 group-hover:ring-text/25 group-has-[a:focus-visible]:ring-2 group-has-[a:focus-visible]:ring-text/40 motion-reduce:transform-none',
             variant === 'grid' && 'rounded-[6px]',
+            // Dead channels stay listed but recede: greyed logo, dimmed tile.
+            !live && 'opacity-60 grayscale',
           )}
         >
-          <LiveBadge />
-          <QualityChip quality={channel.quality} />
+          <LiveBadge status={channel.status} />
+          {live && <QualityChip quality={channel.quality} />}
         </ChannelLogo>
         <span className="flex flex-col gap-0.5 px-0.5 pr-12">
           <span className="truncate text-[15px] font-semibold">{channel.name}</span>

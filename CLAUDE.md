@@ -12,9 +12,12 @@ The same API will later serve Android, Android TV and iOS apps.
 ## Non-negotiable rules
 
 - We never proxy, re-host, record or download video. We only link streams.
-- Public endpoints read only from the `public_channels` view
-  (approved, not nsfw, not blocklisted, not closed, web_playable stream with score >= 50).
-- New channels from sync start as `pending`. Nothing goes public automatically.
+- Public endpoints read only from the `public_channels` materialized view. Directory mode (owner decision,
+  2026-10-28): every channel is listed with a status (live / offline / no_stream / closed), live first.
+  Still excluded: NSFW, the iptv-org blocklist, and channels a curator set to `hidden` or `removed`.
+  `live` = a web_playable stream with score >= 50. Home rails, trending, related and the sitemap use live only;
+  dead channel pages are noindex. Refresh the view (`refresh_public_channels()`) after any change it depends on.
+- New channels from sync start as `pending` and are listed; hide/remove takes a channel down immediately.
 - Treat every value from iptv-org as untrusted: validate with Zod, allow only
   http/https stream URLs, block private/loopback IPs in any server-side fetch.
 - Do not store IP addresses. Use a daily-rotating salted hash where de-duplication is needed.

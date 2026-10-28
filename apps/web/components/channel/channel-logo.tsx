@@ -1,5 +1,6 @@
 'use client';
 
+import type { ChannelStatus } from '@tunely/shared';
 import { useState } from 'react';
 import { monogram, tint } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -57,15 +58,24 @@ export function ChannelLogo({
   );
 }
 
-export function LiveBadge({ className }: { className?: string }) {
+const DEAD_LABEL: Record<Exclude<ChannelStatus, 'live'>, string> = {
+  offline: 'OFFLINE',
+  no_stream: 'NO STREAM',
+  closed: 'CLOSED',
+};
+
+/** LIVE in red, or a grey label for channels that can't play right now. Stored snapshots may lack a status: treat as live. */
+export function LiveBadge({ className, status = 'live' }: { className?: string; status?: ChannelStatus }) {
+  const live = status === 'live';
   return (
     <span
       className={cn(
-        'bg-live absolute top-2.5 left-2.5 rounded-[5px] px-2 py-[3px] text-[11px] font-extrabold tracking-[0.08em] text-[#0B0D12]',
+        'absolute top-2.5 left-2.5 rounded-[5px] px-2 py-[3px] text-[11px] font-extrabold tracking-[0.08em]',
+        live ? 'bg-live text-[#0B0D12]' : 'bg-[#0B0D12E6] text-[#C9D0DD] ring-1 ring-white/15',
         className,
       )}
     >
-      LIVE
+      {live ? 'LIVE' : DEAD_LABEL[status]}
     </span>
   );
 }

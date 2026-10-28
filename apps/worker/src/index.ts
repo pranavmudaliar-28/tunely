@@ -1,3 +1,4 @@
+import { refreshPublicChannels } from '@tunely/db';
 import { JOB, QUEUE } from '@tunely/shared';
 import { Queue, Worker, type Processor } from 'bullmq';
 import { pino } from 'pino';
@@ -39,7 +40,9 @@ const handlers: Record<string, Processor> = {
   [JOB.flushReports]: async () => ({ inserted: await flushReports(db, connection) }),
   [JOB.healthScore]: async () => {
     await pruneChecks(db);
-    return { rescored: await rescore(db) };
+    const rescored = await rescore(db);
+    await refreshPublicChannels(db);
+    return { rescored };
   },
 };
 

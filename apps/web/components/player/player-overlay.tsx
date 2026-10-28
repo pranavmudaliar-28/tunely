@@ -3,10 +3,8 @@ import type { PlayerStatus } from '@/lib/player/state';
 import { BlockedIcon, GlobeIcon, OfflineIcon } from '@/components/ui/icons';
 
 // Copy and actions from the "Player states" canvas board. Never a blank black box.
-const COPY: Record<
-  'offline' | 'geo_blocked' | 'browser_blocked',
-  { title: string; body: string; retry: boolean }
-> = {
+type Kind = 'offline' | 'geo_blocked' | 'browser_blocked' | 'no_stream' | 'closed';
+const COPY: Record<Kind, { title: string; body: string; retry: boolean }> = {
   offline: {
     title: 'This channel is offline right now',
     body: "The broadcaster's stream isn't responding.",
@@ -22,6 +20,16 @@ const COPY: Record<
     body: 'It will work in the Tunely app, coming soon.',
     retry: false,
   },
+  no_stream: {
+    title: 'No stream available for this channel',
+    body: "We don't have a working link for it yet. We check for new streams every day.",
+    retry: false,
+  },
+  closed: {
+    title: 'This channel has closed',
+    body: 'The broadcaster has stopped this channel.',
+    retry: false,
+  },
 };
 
 export function PlayerOverlay({
@@ -31,8 +39,11 @@ export function PlayerOverlay({
   onNext,
   onRetry,
   canGoNext,
+  deadReason,
 }: {
   status: PlayerStatus;
+  /** Set when the channel has nothing playable at all; overrides the playback error copy. */
+  deadReason?: Kind;
   error: PlaybackError | null;
   channelName: string;
   onNext(): void;
@@ -62,7 +73,8 @@ export function PlayerOverlay({
   }
   if (status !== 'error') return null;
 
-  const kind = error === 'geo_blocked' || error === 'browser_blocked' ? error : 'offline';
+  const kind: Kind =
+    deadReason ?? (error === 'geo_blocked' || error === 'browser_blocked' ? error : 'offline');
   const copy = COPY[kind];
   const Icon = kind === 'geo_blocked' ? GlobeIcon : kind === 'browser_blocked' ? BlockedIcon : OfflineIcon;
   return (

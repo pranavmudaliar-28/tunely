@@ -1,6 +1,6 @@
 'use client';
 
-import type { ChannelList, Facet } from '@tunely/shared';
+import type { ChannelList, ChannelStatus, Facet } from '@tunely/shared';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useRouter } from 'next/navigation';
@@ -22,6 +22,12 @@ export interface BrowseFacets {
 
 type FilterKey = 'country' | 'category' | 'language';
 const LABELS: Record<FilterKey, string> = { country: 'Country', category: 'Category', language: 'Language' };
+const STATUS_LABEL: Record<ChannelStatus, string> = {
+  live: 'Live now',
+  offline: 'Offline',
+  no_stream: 'No stream',
+  closed: 'Closed',
+};
 
 export function browseHref(f: Omit<ChannelFilters, 'cursor' | 'limit'>) {
   const params = new URLSearchParams();
@@ -40,8 +46,9 @@ export function BrowseView({
   facets: BrowseFacets;
 }) {
   const router = useRouter();
-  const set = (patch: Partial<Record<FilterKey | 'q', string | undefined>>) =>
-    router.push(browseHref({ ...filters, ...patch }), { scroll: false });
+  // Values come from our own selects and chips, so the status is always a valid ChannelStatus.
+  const set = (patch: Partial<Record<FilterKey | 'q' | 'status', string | undefined>>) =>
+    router.push(browseHref({ ...filters, ...patch } as ChannelFilters), { scroll: false });
 
   const query = useInfiniteQuery({
     queryKey: ['browse', filters],
@@ -107,6 +114,23 @@ export function BrowseView({
           options={facets.languages}
           onChange={(v) => set({ language: v })}
         />
+        <div className="flex grow basis-40 flex-col gap-1.5">
+          <label htmlFor="b-status" className="text-text-muted text-xs font-medium">
+            Show
+          </label>
+          <select
+            id="b-status"
+            value={filters.status ?? ''}
+            onChange={(e) => set({ status: e.target.value || undefined })}
+            className="border-border bg-bg h-11 rounded-[8px] border px-2.5 text-sm"
+          >
+            <option value="">All channels</option>
+            <option value="live">Live now</option>
+            <option value="offline">Offline</option>
+            <option value="no_stream">No stream</option>
+            <option value="closed">Closed</option>
+          </select>
+        </div>
         <button
           type="submit"
           className="bg-surface-raised border-border h-11 rounded-[8px] border px-5 text-sm font-semibold"
@@ -115,9 +139,15 @@ export function BrowseView({
         </button>
       </form>
 
-      {(active.length > 0 || filters.q) && (
+      {(active.length > 0 || filters.q || filters.status) && (
         <div className="flex flex-wrap items-center gap-2">
           {filters.q && <Chip label={`Search: ${filters.q}`} onRemove={() => set({ q: undefined })} />}
+          {filters.status && (
+            <Chip
+              label={`Show: ${STATUS_LABEL[filters.status]}`}
+              onRemove={() => set({ status: undefined })}
+            />
+          )}
           {active.map((k) => (
             <Chip
               key={k}
@@ -137,10 +167,8 @@ export function BrowseView({
 
       {items.length === 0 ? (
         <div className="border-border flex flex-col items-center gap-3 rounded-[12px] border p-10 text-center">
-          <p className="text-lg font-semibold">No channels are playing for these filters right now</p>
-          <p className="text-text-muted text-sm">
-            We only list channels that passed a health check in the last few hours.
-          </p>
+          <p className="text-lg font-semibold">No channels match these filters</p>
+          <p className="text-text-muted text-sm">Try a different country, category or language.</p>
           <button
             type="button"
             onClick={() => router.push('/browse')}

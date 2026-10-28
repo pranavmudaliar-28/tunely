@@ -18,8 +18,14 @@ async function load() {
   const settle = <T,>(p: Promise<T>, fallback: T) => p.catch(() => fallback);
   const [trending, local, worldNews, categories, languages] = await Promise.all([
     settle(api.trending(), []),
-    settle(api.channels({ country: HOME_COUNTRY, limit: 12 }), { items: [], nextCursor: null }),
-    settle(api.channels({ category: 'news', language: 'eng', limit: 12 }), { items: [], nextCursor: null }),
+    settle(api.channels({ country: HOME_COUNTRY, status: 'live', limit: 12 }), {
+      items: [],
+      nextCursor: null,
+    }),
+    settle(api.channels({ category: 'news', language: 'eng', status: 'live', limit: 12 }), {
+      items: [],
+      nextCursor: null,
+    }),
     settle(api.categories(), [] as Facet[]),
     settle(api.languages(), [] as Facet[]),
   ]);
@@ -27,8 +33,12 @@ async function load() {
   const categoryRails = await Promise.all(
     topCategories.map(async (c) => ({
       facet: c,
-      items: (await settle(api.channels({ category: c.id, limit: 12 }), { items: [], nextCursor: null }))
-        .items,
+      items: (
+        await settle(api.channels({ category: c.id, status: 'live', limit: 12 }), {
+          items: [],
+          nextCursor: null,
+        })
+      ).items,
     })),
   );
   return { trending, local: local.items, worldNews: worldNews.items, categoryRails, languages };

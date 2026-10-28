@@ -12,7 +12,7 @@ import {
   timestamp,
   uuid,
   uniqueIndex,
-  pgView,
+  pgMaterializedView,
 } from 'drizzle-orm/pg-core';
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
@@ -234,11 +234,12 @@ export const syncRuns = pgTable('sync_runs', {
   error: text('error'),
 });
 
-// ---- Public view (defined in migrations/0002_public_channels.sql) ----
+// ---- Public directory (materialized view, migrations/0003_channel_directory.sql) ----
 
-// The only thing public endpoints read. A channel is public when it is approved, not closed,
-// not NSFW, not blocklisted, and has a web-playable stream scoring >= 50.
-export const publicChannels = pgView('public_channels', {
+// The only thing public endpoints read: every channel except NSFW, blocklisted, and hidden/removed by a
+// curator, with a status. 'live' = a web-playable stream scoring >= 50. Refreshed by the worker.
+export const channelStatus = ['live', 'offline', 'no_stream', 'closed'] as const;
+export const publicChannels = pgMaterializedView('public_channels', {
   id: text('id').notNull(),
   name: text('name').notNull(),
   altNames: text('alt_names').array().notNull(),
@@ -248,8 +249,10 @@ export const publicChannels = pgView('public_channels', {
   website: text('website'),
   languages: text('languages').array().notNull(),
   logoUrl: text('logo_url'),
-  bestStreamId: uuid('best_stream_id').notNull(),
-  bestScore: smallint('best_score').notNull(),
+  bestStreamId: uuid('best_stream_id'),
+  bestScore: smallint('best_score'),
   bestHeight: integer('best_height'),
   bestQuality: text('best_quality'),
+  status: text('status', { enum: channelStatus }).notNull(),
+  statusRank: smallint('status_rank').notNull(),
 }).existing();

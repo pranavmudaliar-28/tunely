@@ -22,6 +22,23 @@ const HERO_CATEGORIES = [
   'religious',
 ];
 const MAX_SLIDES = 7;
+const RAIL_PRIORITY = [
+  'entertainment',
+  'movies',
+  'sports',
+  'kids',
+  'music',
+  'news',
+  'series',
+  'documentary',
+  'comedy',
+  'animation',
+  'religious',
+  'general',
+];
+const RAIL_LAST = ['shop'];
+/** Categories with fewer live channels than this get no rail (still reachable from Categories). */
+const MIN_RAIL_ITEMS = 6;
 
 async function load() {
   const settle = <T,>(p: Promise<T>, fallback: T) => p.catch(() => fallback);
@@ -38,18 +55,26 @@ async function load() {
     settle(api.categories(), [] as Facet[]),
     settle(api.languages(), [] as Facet[]),
   ]);
-  const topCategories = categories.filter((c) => c.id !== 'news' && c.count >= 4).slice(0, 4);
-  const categoryRails = await Promise.all(
-    topCategories.map(async (c) => ({
-      facet: c,
-      items: (
-        await settle(api.channels({ category: c.id, status: 'live', limit: 12 }), {
-          items: [],
-          nextCursor: null,
-        })
-      ).items,
-    })),
-  );
+  // A rail for every category: popular ones first, then the rest by size, shopping last.
+  // Each rail shows its best live channels (health score, then resolution).
+  const rank = (id: string) => {
+    const i = RAIL_PRIORITY.indexOf(id);
+    return i === -1 ? (RAIL_LAST.includes(id) ? 1000 : 100) : i;
+  };
+  const railCategories = [...categories].sort((a, b) => rank(a.id) - rank(b.id) || b.count - a.count);
+  const categoryRails = (
+    await Promise.all(
+      railCategories.map(async (c) => ({
+        facet: c,
+        items: (
+          await settle(api.channels({ category: c.id, status: 'live', sort: 'best', limit: 12 }), {
+            items: [],
+            nextCursor: null,
+          })
+        ).items,
+      })),
+    )
+  ).filter((r) => r.items.length >= MIN_RAIL_ITEMS);
   // Hero picks: the best-scoring live channels of the categories viewers care most about.
   const heroCategories = HERO_CATEGORIES.map((id) => categories.find((c) => c.id === id)).filter(
     (c): c is Facet => Boolean(c),

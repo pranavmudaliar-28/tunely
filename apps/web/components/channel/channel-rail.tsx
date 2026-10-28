@@ -26,7 +26,11 @@ export function ChannelRail({
   const headingId = useId();
   if (!items.length) return null;
   return (
-    <section aria-labelledby={headingId}>
+    <section
+      aria-labelledby={headingId}
+      // Many rails on the home page: let the browser skip rendering the ones far off-screen.
+      className="[contain-intrinsic-size:auto_300px] [content-visibility:auto]"
+    >
       <div className="flex items-baseline gap-3 pr-4 pb-3.5 sm:pr-14">
         <h2 id={headingId} className="text-xl font-bold">
           {title}

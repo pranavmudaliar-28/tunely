@@ -9,6 +9,16 @@ services:
     dockerfilePath: ./deploy/render/Dockerfile
     dockerContext: .
     healthCheckPath: /v1/health
+    # Redeploy only when API/worker code changes: every redeploy restarts the service and cuts off a
+    # running stream-check batch, so website-only pushes must not trigger one.
+    buildFilter:
+      paths:
+        - apps/api/**
+        - apps/worker/**
+        - packages/**
+        - deploy/render/**
+        - pnpm-lock.yaml
+        - render.yaml
     envVars:
       - key: NODE_ENV
         value: production

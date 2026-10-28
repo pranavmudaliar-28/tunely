@@ -123,9 +123,16 @@ export default async function HomePage() {
     return (
       <div className="flex flex-col items-center gap-3 p-16 text-center">
         <h1 className="text-3xl font-extrabold">Tunely</h1>
-        <p className="text-text-muted">
-          No channels are available right now. Please check back in a few minutes.
+        <p className="text-text-muted max-w-md">
+          We&apos;re checking which channels are playing right now. Live channels appear here within a few
+          minutes; meanwhile you can browse the full directory.
         </p>
+        <Link
+          href="/browse"
+          className="bg-text text-bg mt-3 flex h-12 items-center rounded-[8px] px-6 font-bold no-underline"
+        >
+          Browse all channels
+        </Link>
       </div>
     );
   }

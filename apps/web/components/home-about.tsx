@@ -24,7 +24,7 @@ const FAQ = [
 /** Text section for the home page: what the site is, plus an FAQ (also as FAQPage structured data). */
 export function HomeAbout() {
   return (
-    <section aria-labelledby="about-tunely" className="flex max-w-[760px] flex-col gap-4 pr-4 sm:pr-14">
+    <section aria-labelledby="about-tunely" className="mx-auto flex w-full max-w-[760px] flex-col gap-4">
       <JsonLd
         data={{
           '@context': 'https://schema.org',

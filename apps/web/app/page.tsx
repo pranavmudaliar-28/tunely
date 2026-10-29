@@ -202,6 +202,8 @@ export default async function HomePage() {
             />
           </Fragment>
         ))}
+      </div>
+      <div className="px-4 pb-12 sm:px-14">
         <HomeAbout />
       </div>
     </>

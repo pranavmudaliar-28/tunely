@@ -10,7 +10,7 @@ const config: NextConfig = {
   outputFileTracingRoot: fileURLToPath(new URL('../..', import.meta.url)),
   // Keep the dev badge away from the nav rail's Theme button.
   devIndicators: { position: 'bottom-right' },
-  // Search lives on Live TV now; old /search?q= links keep working (the query string carries over).
+  // Search lives on Live TV (/browse) now; old /search?q= links keep working (the query string carries over).
   redirects: async () => [{ source: '/search', destination: '/browse', permanent: true }],
 };
 export default config;

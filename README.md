@@ -64,6 +64,10 @@ Tests that touch Postgres use `TEST_DATABASE_URL` (`createdb tunely_test`, then 
 
 Keyboard: ↑/↓ channel up/down, F fullscreen, M mute, Space pause, Ctrl/⌘+K search.
 
+## Earning (Adsterra, donations, affiliates)
+
+All off until their env vars are set; step-by-step setup in [docs/monetization.md](docs/monetization.md). Adsterra banners fill the ad spots only while AdSense isn't configured.
+
 ## Ads (Google AdSense)
 
 Full checklist, including what gets sites rejected: [docs/adsense.md](docs/adsense.md).

@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { api } from '@/lib/api-client';
-import { LEGAL_PAGES, SITE_URL } from '@/lib/site';
+import { FOOTER_PAGES, SITE_URL } from '@/lib/site';
 
 export const revalidate = 3600;
 
@@ -12,7 +12,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${site}/`, changeFrequency: 'hourly', priority: 1 },
     { url: `${site}/browse`, changeFrequency: 'daily', priority: 0.8 },
     { url: `${site}/categories`, changeFrequency: 'daily', priority: 0.6 },
-    ...LEGAL_PAGES.map((p) => ({
+    ...FOOTER_PAGES.map((p) => ({
       url: `${site}${p.href}`,
       changeFrequency: 'monthly' as const,
       priority: 0.3,

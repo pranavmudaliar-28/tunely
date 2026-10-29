@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ProsePage } from '@/components/layout/prose-page';
-import { CONTACT_EMAIL, SITE_NAME } from '@/lib/site';
+import { CONTACT_EMAIL, SITE_NAME, SUPPORT_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'About',
@@ -37,6 +37,15 @@ export default function AboutPage() {
         {SITE_NAME} is free and shows a few display ads, never on or over the video. See our{' '}
         <Link href="/privacy">privacy policy</Link> for how ads use cookies.
       </p>
+      {SUPPORT_URL && (
+        <p>
+          Enjoying {SITE_NAME}? You can help keep it free and ad-light:{' '}
+          <a href={SUPPORT_URL} target="_blank" rel="noopener">
+            support us
+          </a>
+          .
+        </p>
+      )}
       <h2>Contact</h2>
       <p>
         Questions, feedback or a channel that doesn&apos;t work? Email{' '}

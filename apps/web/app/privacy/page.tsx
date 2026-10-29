@@ -65,6 +65,15 @@ export default function PrivacyPage() {
           .
         </li>
         <li>
+          Some ads may instead be served by Adsterra, which may also use cookies and similar technologies; see
+          the{' '}
+          <a href="https://adsterra.com/privacy-policy/" rel="noopener">
+            Adsterra privacy policy
+          </a>
+          . Some pages contain affiliate links (for example Amazon), which may set cookies when you click
+          them.
+        </li>
+        <li>
           Visitors in the European Economic Area, the UK and Switzerland are asked for consent through
           Google&apos;s consent message before personalised ads are shown.
         </li>

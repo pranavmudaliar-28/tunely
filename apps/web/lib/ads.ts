@@ -15,6 +15,25 @@ export function adSlot(placement: AdPlacement): string | null {
   return perPlacement?.trim() || process.env.NEXT_PUBLIC_ADSENSE_SLOT?.trim() || null;
 }
 
+const clean = (v: string | undefined, pattern: RegExp) =>
+  v?.trim() && pattern.test(v.trim()) ? v.trim() : null;
+
+/**
+ * Adsterra banners (Websites → Banner): used only while AdSense isn't configured. Keys go into an iframe document,
+ * so they're validated to plain ids.
+ */
+export const ADSTERRA = {
+  wide: clean(process.env.NEXT_PUBLIC_ADSTERRA_KEY_728X90, /^[a-z0-9]{8,64}$/i),
+  narrow: clean(process.env.NEXT_PUBLIC_ADSTERRA_KEY_320X50, /^[a-z0-9]{8,64}$/i),
+  host: clean(process.env.NEXT_PUBLIC_ADSTERRA_HOST, /^[a-z0-9.-]+$/i) ?? 'www.highperformanceformat.com',
+};
+
+/** The HTML Adsterra's banner code expects, to run inside a sandboxed iframe. */
+export function adsterraDoc(key: string, width: number, height: number, host = ADSTERRA.host): string {
+  const options = JSON.stringify({ key, format: 'iframe', height, width, params: {} });
+  return `<!doctype html><html><body style="margin:0"><script>atOptions=${options};</script><script src="https://${host}/${key}/invoke.js"></script></body></html>`;
+}
+
 /** "ca-pub-123" → "pub-123", the form ads.txt uses. */
 export function publisherId(client: string): string {
   return client.replace(/^ca-/, '');

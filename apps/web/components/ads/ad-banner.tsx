@@ -1,8 +1,8 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { useEffect, useRef } from 'react';
-import { ADSENSE_CLIENT, adSlot, type AdPlacement } from '@/lib/ads';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { ADSENSE_CLIENT, ADSTERRA, adSlot, adsterraDoc, type AdPlacement } from '@/lib/ads';
 import { cn } from '@/lib/utils';
 
 declare global {
@@ -28,6 +28,10 @@ export function AdBanner({ placement, className }: { placement: AdPlacement; cla
       // Ad blockers and unfilled slots are normal; the page carries on without the ad.
     }
   }, [slot, pathname]);
+
+  if ((!ADSENSE_CLIENT || !slot) && (ADSTERRA.wide || ADSTERRA.narrow)) {
+    return <AdsterraBanner className={className} />;
+  }
 
   if (!ADSENSE_CLIENT || !slot) {
     // Development only: show where ads will go once AdSense is configured.
@@ -56,6 +60,48 @@ export function AdBanner({ placement, className }: { placement: AdPlacement; cla
         data-ad-slot={slot}
         data-ad-format="auto"
         data-full-width-responsive="true"
+      />
+    </aside>
+  );
+}
+
+const WIDE = '(min-width: 760px)';
+const subscribeWide = (cb: () => void) => {
+  const mq = window.matchMedia(WIDE);
+  mq.addEventListener('change', cb);
+  return () => mq.removeEventListener('change', cb);
+};
+
+/** One Adsterra banner sized for the screen (only the visible size loads, so no hidden impressions). */
+function AdsterraBanner({ className }: { className?: string }) {
+  const pathname = usePathname();
+  const wide = useSyncExternalStore(
+    subscribeWide,
+    () => window.matchMedia(WIDE).matches,
+    () => null,
+  );
+  if (wide === null) return null;
+  const pick =
+    wide && ADSTERRA.wide
+      ? { key: ADSTERRA.wide, w: 728, h: 90 }
+      : ADSTERRA.narrow
+        ? { key: ADSTERRA.narrow, w: 320, h: 50 }
+        : null;
+  if (!pick) return null;
+  return (
+    <aside aria-label="Advertisement" className={cn('flex flex-col items-center gap-1', className)}>
+      <span className="text-text-muted self-start text-[11px] tracking-wide uppercase">Advertisement</span>
+      <iframe
+        // A fresh banner per page.
+        key={pathname}
+        title="Advertisement"
+        width={pick.w}
+        height={pick.h}
+        srcDoc={adsterraDoc(pick.key, pick.w, pick.h)}
+        // Scripts and new-tab clicks only: an ad can't read our page or redirect it.
+        sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
+        loading="lazy"
+        className="max-w-full border-0"
       />
     </aside>
   );

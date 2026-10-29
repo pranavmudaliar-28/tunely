@@ -59,6 +59,8 @@ export function BrowseView({
   // resync the box (and the filters we build on) when the URL changes for another reason: back button,
   // a link, a chip.
   const [term, setTerm] = useState(filters.q ?? '');
+  // Phones: the four selects fold behind a Filters button so results start above the fold.
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [ownHrefs, setOwnHrefs] = useState<string[]>([]);
   const href = browseHref(filters);
   const [appliedHref, setAppliedHref] = useState(href);
@@ -132,6 +134,7 @@ export function BrowseView({
     return list.find((f) => f.id === id)?.name ?? id;
   };
   const active = (Object.keys(LABELS) as FilterKey[]).filter((k) => filters[k]);
+  const filterCount = active.length + (filters.status ? 1 : 0);
 
   return (
     <div className="flex flex-col gap-6">
@@ -141,70 +144,80 @@ export function BrowseView({
           e.preventDefault();
           set({});
         }}
-        className="border-border bg-surface flex flex-wrap items-end gap-3 rounded-[12px] border p-4"
+        className="border-border bg-surface flex flex-col gap-3 rounded-[12px] border p-3 sm:p-4"
       >
-        <div className="flex grow-[2] basis-60 flex-col gap-1.5">
-          <label htmlFor="b-q" className="text-text-muted text-xs font-medium">
-            Search
-          </label>
-          <input
-            id="b-q"
-            name="q"
-            type="search"
-            value={term}
-            onChange={(e) => setTerm(e.target.value)}
-            autoComplete="off"
-            placeholder="Channel name or network"
-            className="border-border bg-bg h-11 rounded-[8px] border px-3 text-sm"
-          />
-        </div>
-        <FacetSelect
-          id="b-country"
-          label="Country"
-          all="All countries"
-          value={filters.country}
-          options={facets.countries}
-          onChange={(v) => set({ country: v })}
-        />
-        <FacetSelect
-          id="b-cat"
-          label="Category"
-          all="All categories"
-          value={filters.category}
-          options={facets.categories}
-          onChange={(v) => set({ category: v })}
-        />
-        <FacetSelect
-          id="b-lang"
-          label="Language"
-          all="All languages"
-          value={filters.language}
-          options={facets.languages}
-          onChange={(v) => set({ language: v })}
-        />
-        <div className="flex grow basis-40 flex-col gap-1.5">
-          <label htmlFor="b-status" className="text-text-muted text-xs font-medium">
-            Show
-          </label>
-          <select
-            id="b-status"
-            value={filters.status ?? ''}
-            onChange={(e) => set({ status: e.target.value || undefined })}
-            className="border-border bg-bg h-11 rounded-[8px] border px-2.5 text-sm"
+        <div className="flex items-end gap-2">
+          <div className="flex min-w-0 grow flex-col gap-1.5">
+            <label htmlFor="b-q" className="text-text-muted sr-only text-xs font-medium sm:not-sr-only">
+              Search
+            </label>
+            <input
+              id="b-q"
+              name="q"
+              type="search"
+              value={term}
+              onChange={(e) => setTerm(e.target.value)}
+              autoComplete="off"
+              placeholder="Channel name or network"
+              className="border-border bg-bg h-11 w-full rounded-[8px] border px-3 text-sm"
+            />
+          </div>
+          <button
+            type="button"
+            aria-expanded={filtersOpen}
+            aria-controls="b-filters"
+            onClick={() => setFiltersOpen((o) => !o)}
+            className="bg-surface-raised border-border h-11 shrink-0 rounded-[8px] border px-4 text-sm font-semibold sm:hidden"
           >
-            <option value="">All channels</option>
-            <option value="live">Live now</option>
-            <option value="offline">Offline</option>
-            <option value="no_stream">No stream</option>
-            <option value="closed">Closed</option>
-          </select>
+            {filterCount ? `Filters (${filterCount})` : 'Filters'}
+          </button>
         </div>
-        <button
-          type="submit"
-          className="bg-surface-raised border-border h-11 rounded-[8px] border px-5 text-sm font-semibold"
+        <div
+          id="b-filters"
+          className={`${filtersOpen ? 'grid' : 'hidden'} grid-cols-2 gap-3 sm:grid sm:grid-cols-4`}
         >
-          Search
-        </button>
+          <FacetSelect
+            id="b-country"
+            label="Country"
+            all="All countries"
+            value={filters.country}
+            options={facets.countries}
+            onChange={(v) => set({ country: v })}
+          />
+          <FacetSelect
+            id="b-cat"
+            label="Category"
+            all="All categories"
+            value={filters.category}
+            options={facets.categories}
+            onChange={(v) => set({ category: v })}
+          />
+          <FacetSelect
+            id="b-lang"
+            label="Language"
+            all="All languages"
+            value={filters.language}
+            options={facets.languages}
+            onChange={(v) => set({ language: v })}
+          />
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <label htmlFor="b-status" className="text-text-muted text-xs font-medium">
+              Show
+            </label>
+            <select
+              id="b-status"
+              value={filters.status ?? ''}
+              onChange={(e) => set({ status: e.target.value || undefined })}
+              className="border-border bg-bg h-11 w-full min-w-0 rounded-[8px] border px-2.5 text-sm"
+            >
+              <option value="">All channels</option>
+              <option value="live">Live now</option>
+              <option value="offline">Offline</option>
+              <option value="no_stream">No stream</option>
+              <option value="closed">Closed</option>
+            </select>
+          </div>
+        </div>
       </form>
 
       {(active.length > 0 || filters.q || filters.status) && (
@@ -290,7 +303,7 @@ function FacetSelect(props: {
   onChange(v?: string): void;
 }) {
   return (
-    <div className="flex grow basis-40 flex-col gap-1.5">
+    <div className="flex min-w-0 flex-col gap-1.5">
       <label htmlFor={props.id} className="text-text-muted text-xs font-medium">
         {props.label}
       </label>
@@ -298,7 +311,7 @@ function FacetSelect(props: {
         id={props.id}
         value={props.value ?? ''}
         onChange={(e) => props.onChange(e.target.value || undefined)}
-        className="border-border bg-bg h-11 rounded-[8px] border px-2.5 text-sm"
+        className="border-border bg-bg h-11 w-full min-w-0 rounded-[8px] border px-2.5 text-sm"
       >
         <option value="">{props.all}</option>
         {props.options.map((o) => (

@@ -3,7 +3,7 @@ import type { PlayerStatus } from '@/lib/player/state';
 import { BlockedIcon, GlobeIcon, OfflineIcon } from '@/components/ui/icons';
 
 // Copy and actions from the "Player states" canvas board. Never a blank black box.
-type Kind = 'offline' | 'geo_blocked' | 'browser_blocked' | 'no_stream' | 'closed';
+type Kind = 'offline' | 'geo_blocked' | 'browser_blocked' | 'unsupported_codec' | 'no_stream' | 'closed';
 const COPY: Record<Kind, { title: string; body: string; retry: boolean }> = {
   offline: {
     title: 'This channel is offline right now',
@@ -18,6 +18,11 @@ const COPY: Record<Kind, { title: string; body: string; retry: boolean }> = {
   browser_blocked: {
     title: "This stream can't play in a browser",
     body: 'It will work in the Tunely app, coming soon.',
+    retry: false,
+  },
+  unsupported_codec: {
+    title: "Your device can't play this channel's video",
+    body: 'It uses HEVC/HDR video, which plays on iPhone, Mac Safari and many Android phones. On Windows, try Microsoft Edge.',
     retry: false,
   },
   no_stream: {
@@ -80,9 +85,17 @@ export function PlayerOverlay({
   if (status !== 'error') return null;
 
   const kind: Kind =
-    deadReason ?? (error === 'geo_blocked' || error === 'browser_blocked' ? error : 'offline');
+    deadReason ??
+    (error === 'geo_blocked' || error === 'browser_blocked' || error === 'unsupported_codec'
+      ? error
+      : 'offline');
   const copy = COPY[kind];
-  const Icon = kind === 'geo_blocked' ? GlobeIcon : kind === 'browser_blocked' ? BlockedIcon : OfflineIcon;
+  const Icon =
+    kind === 'geo_blocked'
+      ? GlobeIcon
+      : kind === 'browser_blocked' || kind === 'unsupported_codec'
+        ? BlockedIcon
+        : OfflineIcon;
   return (
     <div
       role="alert"

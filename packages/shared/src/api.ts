@@ -73,6 +73,7 @@ export const PlaybackErrorTypes = [
   'offline',
   'geo_blocked',
   'browser_blocked',
+  'unsupported_codec',
   'timeout',
   'media',
   'unknown',

@@ -99,6 +99,20 @@ describe.skipIf(!url)('health jobs (database)', () => {
       .select({ id: schema.streams.id })
       .from(schema.streams)
       .where(eq(schema.streams.channelId, 'DDNews.in'));
+    // Devices that can't decode the codec say nothing about the stream: no effect on the score.
+    await db.insert(schema.playbackReports).values(
+      Array.from({ length: 10 }, () => ({
+        streamId: dd!.id,
+        platform: 'web',
+        result: 'error' as const,
+        errorType: 'unsupported_codec',
+        anonSessionHash: 'y',
+      })),
+    );
+    await rescore(db);
+    expect(await liveIds()).toEqual(['DDNews.in', 'DWNews.de']);
+    await db.execute(sql`truncate playback_reports`);
+
     await db.insert(schema.playbackReports).values(
       Array.from({ length: 10 }, () => ({
         streamId: dd!.id,

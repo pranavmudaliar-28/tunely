@@ -252,8 +252,18 @@ export function Player({
   const toggleFullscreen = useCallback(() => {
     const el = frameRef.current;
     if (!el) return;
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else if (el.requestFullscreen) void el.requestFullscreen();
+    // Phones turn sideways like YouTube (Android Chrome; desktops reject the lock, which is fine).
+    const orientation = screen.orientation as ScreenOrientation & {
+      lock?: (o: 'landscape') => Promise<void>;
+    };
+    if (document.fullscreenElement) {
+      orientation.unlock?.();
+      void document.exitFullscreen();
+    } else if (el.requestFullscreen)
+      void el
+        .requestFullscreen()
+        .then(() => orientation.lock?.('landscape'))
+        .catch(() => {});
     // iOS Safari only supports fullscreen on the video element itself.
     else
       (

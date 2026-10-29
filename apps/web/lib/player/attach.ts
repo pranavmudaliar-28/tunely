@@ -1,7 +1,8 @@
 import type Hls from 'hls.js';
 import type { ErrorData } from 'hls.js';
 
-export type PlaybackError = 'offline' | 'geo_blocked' | 'browser_blocked' | 'timeout' | 'media' | 'unknown';
+export type PlaybackError =
+  'offline' | 'geo_blocked' | 'browser_blocked' | 'unsupported_codec' | 'timeout' | 'media' | 'unknown';
 
 export interface Attached {
   destroy(): void;
@@ -13,8 +14,16 @@ export interface AttachOptions {
   onReady?(hls: Hls | null): void;
 }
 
+// The device can't decode the stream's video (e.g. HEVC/HDR on Windows Chrome). Says nothing about the stream.
+const CODEC_ERRORS = new Set([
+  'manifestIncompatibleCodecsError',
+  'bufferIncompatibleCodecsError',
+  'bufferAddCodecError',
+]);
+
 /** Classify a fatal hls.js error into what we tell the viewer. */
 export function classifyHlsError(data: Pick<ErrorData, 'type' | 'details' | 'response'>): PlaybackError {
+  if (CODEC_ERRORS.has(data.details)) return 'unsupported_codec';
   const status = data.response?.code;
   if (status === 403 || status === 451) return 'geo_blocked';
   if (data.type === 'mediaError') return 'media';
@@ -28,13 +37,16 @@ export function classifyHlsError(data: Pick<ErrorData, 'type' | 'details' | 'res
   return 'unknown';
 }
 
+const canPlayNativeHls = (video: HTMLVideoElement) =>
+  video.canPlayType('application/vnd.apple.mpegurl') !== '';
+
+/** Start downloading hls.js early (the player calls this on load) so it's ready before the stream is. */
+export const preloadHls = () => import('hls.js');
+
 /**
  * Attach an HLS stream to a <video>. hls.js where Media Source is available, otherwise native HLS (Safari, iOS).
  * Always call destroy() before attaching the next channel.
  */
-/** Start downloading hls.js early (the player calls this on load) so it's ready before the stream is. */
-export const preloadHls = () => import('hls.js');
-
 export async function attachStream(
   video: HTMLVideoElement,
   url: string,
@@ -42,6 +54,7 @@ export async function attachStream(
 ): Promise<Attached> {
   const { default: HlsClass } = await import('hls.js');
   if (HlsClass.isSupported()) {
+    let native: Attached | null = null;
     const hls = new HlsClass({
       manifestLoadingTimeOut: 10_000,
       fragLoadingTimeOut: 15_000,
@@ -53,36 +66,51 @@ export async function attachStream(
     });
     let mediaRecoveries = 0;
     hls.on(HlsClass.Events.ERROR, (_e, data) => {
-      if (!data.fatal) return;
-      // One media recovery attempt fixes most decoder hiccups.
-      if (data.type === HlsClass.ErrorTypes.MEDIA_ERROR && mediaRecoveries++ < 1)
-        return hls.recoverMediaError();
-      opts.onError(classifyHlsError(data));
+      if (!data.fatal || native) return;
+      const error = classifyHlsError(data);
+      // One media recovery attempt fixes most decoder hiccups (not a missing codec).
+      if (error === 'media' && mediaRecoveries++ < 1) return hls.recoverMediaError();
+      // The platform player needs no CORS and has its own decoders (HEVC/HDR on Apple devices and many
+      // Android phones), so where it exists it may play what hls.js can't.
+      if ((error === 'browser_blocked' || error === 'unsupported_codec') && canPlayNativeHls(video)) {
+        hls.destroy();
+        native = attachNative(video, url, () => opts.onError(error));
+        void video.play().catch(() => {});
+        return;
+      }
+      opts.onError(error);
     });
     hls.loadSource(url);
     hls.attachMedia(video);
     opts.onReady?.(hls);
     return {
       destroy() {
-        hls.destroy();
+        if (native) native.destroy();
+        else hls.destroy();
       },
     };
   }
 
-  if (video.canPlayType('application/vnd.apple.mpegurl')) {
-    const onError = () => opts.onError(url.startsWith('http:') ? 'browser_blocked' : 'offline');
-    video.addEventListener('error', onError);
-    video.src = url;
+  if (canPlayNativeHls(video)) {
+    const attached = attachNative(video, url, () =>
+      opts.onError(url.startsWith('http:') ? 'browser_blocked' : 'offline'),
+    );
     opts.onReady?.(null);
-    return {
-      destroy() {
-        video.removeEventListener('error', onError);
-        video.removeAttribute('src');
-        video.load();
-      },
-    };
+    return attached;
   }
 
   queueMicrotask(() => opts.onError('browser_blocked'));
   return { destroy() {} };
+}
+
+function attachNative(video: HTMLVideoElement, url: string, onError: () => void): Attached {
+  video.addEventListener('error', onError);
+  video.src = url;
+  return {
+    destroy() {
+      video.removeEventListener('error', onError);
+      video.removeAttribute('src');
+      video.load();
+    },
+  };
 }

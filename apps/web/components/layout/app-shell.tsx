@@ -1,19 +1,18 @@
 import Link from 'next/link';
-import { GridIcon, HeartIcon, HomeIcon, LogoMark, SearchIcon, TvIcon } from '@/components/ui/icons';
+import { GridIcon, HeartIcon, HomeIcon, LogoMark, TvIcon } from '@/components/ui/icons';
 import { NavLink } from './nav-link';
 import { GlobalPlayer } from '@/components/player/global-player';
 import { SearchCommand } from '@/components/search/search-command';
 import { ThemeToggle } from './theme-toggle';
 
 const NAV = [
-  { href: '/search', label: 'Search', icon: SearchIcon },
   { href: '/', label: 'Home', icon: HomeIcon },
   { href: '/browse', label: 'Live TV', icon: TvIcon },
   { href: '/categories', label: 'Categories', icon: GridIcon },
   { href: '/favorites', label: 'Favorites', icon: HeartIcon },
 ];
 
-/** Left icon rail on desktop, a top bar under 720 px (from the "Tunely UI Screens" canvas). */
+/** Left icon rail on desktop; under 720 px a slim top header and a bottom tab bar (thumb reach, like native apps). */
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col min-[720px]:flex-row">
@@ -23,9 +22,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         Skip to content
       </a>
+      <header className="border-border bg-bg sticky top-0 z-30 flex items-center justify-between border-b py-1 pr-1 pl-4 min-[720px]:hidden">
+        <Link href="/" aria-label="Tunely home" className="flex min-h-11 items-center rounded-lg">
+          <LogoMark />
+        </Link>
+        <ThemeToggle />
+      </header>
       <nav
         aria-label="Main"
-        className="border-border bg-bg sticky top-0 z-30 flex shrink-0 items-center justify-around gap-1 border-b px-2 py-1 min-[720px]:h-dvh min-[720px]:w-[88px] min-[720px]:flex-col min-[720px]:justify-start min-[720px]:border-r min-[720px]:border-b-0 min-[720px]:py-5"
+        className="border-border bg-bg fixed inset-x-0 bottom-0 z-30 flex shrink-0 items-center justify-around gap-1 border-t px-2 pt-1 pb-[max(4px,env(safe-area-inset-bottom))] min-[720px]:sticky min-[720px]:top-0 min-[720px]:h-dvh min-[720px]:w-[88px] min-[720px]:flex-col min-[720px]:justify-start min-[720px]:border-t-0 min-[720px]:border-r min-[720px]:py-5"
       >
         <Link
           href="/"
@@ -40,9 +45,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </NavLink>
         ))}
         <span className="hidden grow min-[720px]:block" />
-        <ThemeToggle />
+        <span className="hidden min-[720px]:contents">
+          <ThemeToggle />
+        </span>
       </nav>
-      <div className="flex min-w-0 grow flex-col">
+      <div className="flex min-w-0 grow flex-col pb-[calc(60px+env(safe-area-inset-bottom))] min-[720px]:pb-0">
         <main id="main" className="grow">
           {children}
         </main>

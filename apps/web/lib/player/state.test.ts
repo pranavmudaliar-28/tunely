@@ -17,6 +17,9 @@ describe('playerReducer', () => {
     s = playerReducer(s, { type: 'error', error: 'geo_blocked' });
     s = playerReducer(s, { type: 'error', error: 'offline' });
     expect(s.error).toBe('geo_blocked');
+    s = playerReducer(initialPlayerState(2), { type: 'error', error: 'unsupported_codec' });
+    s = playerReducer(s, { type: 'error', error: 'offline' });
+    expect(s.error).toBe('unsupported_codec');
   });
 
   test('playing clears errors; retry starts over from the best stream', () => {
@@ -72,6 +75,12 @@ test('classifyHlsError', () => {
   expect(classifyHlsError({ type: 'mediaError' as never, details: 'bufferStalledError' as never })).toBe(
     'media',
   );
+  // HEVC/HDR on a device without the decoder: the device's problem, not the stream's.
+  for (const details of ['manifestIncompatibleCodecsError', 'bufferAddCodecError']) {
+    expect(classifyHlsError({ type: 'mediaError' as never, details: details as never })).toBe(
+      'unsupported_codec',
+    );
+  }
 });
 
 test('neighbour wraps around the lineup', () => {

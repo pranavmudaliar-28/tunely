@@ -54,7 +54,7 @@ export const metadata: Metadata = {
   other: ADSENSE_CLIENT ? { 'google-adsense-account': ADSENSE_CLIENT } : undefined,
 };
 
-export const viewport: Viewport = { themeColor: '#0B0D12', colorScheme: 'dark light' };
+export const viewport: Viewport = { themeColor: '#0B0D12', colorScheme: 'dark light', viewportFit: 'cover' };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const fonts = [inter, noto, gujarati, tamil, bengali, gurmukhi].map((f) => f.variable).join(' ');

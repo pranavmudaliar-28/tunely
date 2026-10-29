@@ -23,7 +23,7 @@ export function GlobalPlayer() {
         'z-40',
         full
           ? 'absolute'
-          : 'border-border fixed right-4 bottom-4 w-[min(360px,calc(100vw-32px))] overflow-hidden rounded-[12px] border shadow-2xl shadow-black/60',
+          : 'border-border fixed right-4 bottom-[calc(72px+env(safe-area-inset-bottom))] min-[720px]:bottom-4 w-[min(360px,calc(100vw-32px))] overflow-hidden rounded-[12px] border shadow-2xl shadow-black/60',
         // In browser picture-in-picture the video shows in its own window; keep the element in the
         // document (removing it would end PiP) but out of the way.
         !full && inPip && 'pointer-events-none opacity-0',

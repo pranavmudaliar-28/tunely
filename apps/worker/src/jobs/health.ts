@@ -103,7 +103,7 @@ export async function rescore(db: Db, ids?: string[]) {
                       where stream_id = h.stream_id and checked_at > now() - make_interval(days => ${config.checksRetentionDays})
                       order by checked_at desc limit 12) c), '[]') as checks,
       (select count(distinct p.anon_session_hash) from playback_reports p where p.stream_id = h.stream_id and p.result = 'ok' and p.created_at > now() - interval '24 hours')::int as reports_ok,
-      (select count(*) from playback_reports p where p.stream_id = h.stream_id and p.result = 'error' and p.created_at > now() - interval '24 hours')::int as reports_error
+      (select count(*) from playback_reports p where p.stream_id = h.stream_id and p.result = 'error' and p.error_type is distinct from 'unsupported_codec' and p.created_at > now() - interval '24 hours')::int as reports_error
     from stream_health h ${filter}`);
 
   const scored = rows.rows.map((r) => ({

@@ -33,6 +33,7 @@ export const initialPlayerState = (streamCount: number): PlayerState => ({
 const PRIORITY: PlaybackError[] = [
   'geo_blocked',
   'browser_blocked',
+  'unsupported_codec',
   'offline',
   'timeout',
   'media',

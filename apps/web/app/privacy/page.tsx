@@ -33,6 +33,10 @@ export default function PrivacyPage() {
           We do not store IP addresses. To count distinct viewers we keep a hash of a random session id,
           salted with a secret that changes every day, so reports cannot be linked to you or across days.
         </li>
+        <li>
+          To show channels from your country on the home page, our host works out your country from your
+          connection. We use only the country code, in your browser, and never store it.
+        </li>
         <li>Our hosting providers keep standard server logs for security, for a short time.</li>
       </ul>
 

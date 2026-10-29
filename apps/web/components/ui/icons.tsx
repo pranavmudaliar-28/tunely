@@ -132,3 +132,10 @@ export const LogoMark = ({ size = 34 }: { size?: number }) => (
     <path d="M11.5 9.5v9l7-4.5z" fill="var(--accent)" />
   </svg>
 );
+export const InstallIcon = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M12 3v12" />
+    <path d="M7 10l5 5 5-5" />
+    <path d="M5 21h14" />
+  </svg>
+);

@@ -4,6 +4,7 @@ import { ChannelRail } from '@/components/channel/channel-rail';
 import { StatusDot } from '@/components/channel/channel-logo';
 import { FavoriteButton } from '@/components/channel/favorite-button';
 import { ShareButton } from '@/components/channel/share-button';
+import { SocialShare } from '@/components/channel/social-share';
 import { AdBanner } from '@/components/ads/ad-banner';
 import { JsonLd } from '@/components/json-ld';
 import { PlayerSlot } from '@/components/player/player-slot';
@@ -107,6 +108,7 @@ export default async function WatchPage({ params }: Props) {
         <div className="flex flex-wrap gap-2.5">
           <FavoriteButton channel={channel} />
           <ShareButton title={channel.name} />
+          <SocialShare name={channel.name} path={`/watch/${encodeURIComponent(channel.id)}`} />
         </div>
       </section>
 

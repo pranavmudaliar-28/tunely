@@ -3,6 +3,7 @@ import { GridIcon, HeartIcon, HomeIcon, LogoMark, TvIcon } from '@/components/ui
 import { NavLink } from './nav-link';
 import { GlobalPlayer } from '@/components/player/global-player';
 import { SearchCommand } from '@/components/search/search-command';
+import { InstallButton } from './install-button';
 import { ThemeToggle } from './theme-toggle';
 import { FOOTER_PAGES, SUPPORT_URL } from '@/lib/site';
 
@@ -27,7 +28,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Link href="/" aria-label="Tunely home" className="flex min-h-11 items-center rounded-lg">
           <LogoMark />
         </Link>
-        <ThemeToggle />
+        <div className="flex items-center">
+          <InstallButton />
+          <ThemeToggle />
+        </div>
       </header>
       <nav
         aria-label="Main"
@@ -47,6 +51,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         ))}
         <span className="hidden grow min-[720px]:block" />
         <span className="hidden min-[720px]:contents">
+          <InstallButton />
           <ThemeToggle />
         </span>
       </nav>

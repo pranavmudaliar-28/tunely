@@ -83,14 +83,16 @@ test('browse search box and filters always agree with the results', async ({ pag
   await expect(page).toHaveURL(/[?&]q=zee/);
   // Typing then changing a filter applies both.
   await box.fill('colors');
-  await page.locator('#b-country').selectOption('IN');
+  await page.locator('#b-country').click();
+  await page.getByRole('combobox', { name: 'Search country' }).fill('India');
+  await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/q=colors&country=IN/);
   await expect(page.getByRole('listitem').first()).toContainText(/colors/i);
   // Clear all, then type straight away: only the new text applies.
   await page.getByRole('button', { name: 'Clear all' }).click();
   await box.pressSequentially('doordarshan', { delay: 20 });
   await expect(page).toHaveURL(/\/browse\?q=doordarshan$/);
-  await expect(page.locator('#b-country')).toHaveValue('');
+  await expect(page.locator('#b-country')).toHaveText('All countries');
   // Each Back undoes one action and restores both the URL and the box: first the search typed after
   // Clear all, then Clear all itself.
   await page.goBack();
@@ -99,4 +101,29 @@ test('browse search box and filters always agree with the results', async ({ pag
   await page.goBack();
   await expect(page).toHaveURL(/q=colors&country=IN/);
   await expect(box).toHaveValue('colors');
+});
+
+test('filter dropdowns are searchable, A–Z, and their counts follow the other filters', async ({ page }) => {
+  await page.goto('/browse');
+  const countBefore = await page.locator('#b-status option[value="live"]').textContent();
+  // Keyboard only: open, type, pick.
+  await page.locator('#b-cat').focus();
+  await page.keyboard.press('ArrowDown');
+  const search = page.getByRole('combobox', { name: 'Search category' });
+  await expect(search).toBeFocused();
+  await search.pressSequentially('new');
+  await expect(page.getByRole('option').first()).toContainText('News');
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/category=news/);
+  await expect(page.locator('#b-cat')).toHaveText('News');
+  // Counts elsewhere now describe news channels only.
+  await expect(page.locator('#b-status option[value="live"]')).not.toHaveText(countBefore ?? '');
+  // Country options are alphabetical.
+  await page.locator('#b-country').click();
+  const names = await page
+    .getByRole('option')
+    .evaluateAll((els) => els.slice(1, 8).map((e) => e.querySelector('span')?.textContent ?? ''));
+  expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' })));
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#b-country')).toBeFocused();
 });

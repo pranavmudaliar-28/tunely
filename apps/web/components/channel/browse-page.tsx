@@ -18,11 +18,12 @@ export async function BrowsePage({
   filters: ChannelFilters;
 }) {
   const empty = { items: [], nextCursor: null };
-  const [firstPage, countries, categories, languages] = await Promise.all([
+  const [firstPage, countries, categories, languages, counts] = await Promise.all([
     api.channels({ ...filters, limit: 48 }).catch(() => empty),
     api.countries().catch(() => []),
     api.categories().catch(() => []),
     api.languages().catch(() => []),
+    api.facets(filters).catch(() => null),
   ]);
   const facet = filters.country
     ? countries.find((f) => f.id === filters.country)
@@ -48,7 +49,12 @@ export async function BrowsePage({
               : 'Every channel we know of. Live ones come first; the rest are labelled offline, no stream or closed.')}
         </p>
       </div>
-      <BrowseView filters={filters} firstPage={firstPage} facets={{ countries, categories, languages }} />
+      <BrowseView
+        filters={filters}
+        firstPage={firstPage}
+        facets={{ countries, categories, languages }}
+        initialCounts={counts}
+      />
       {firstPage.items.length > 0 && <AdBanner placement="browse" />}
     </div>
   );

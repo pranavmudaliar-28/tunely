@@ -3,11 +3,13 @@ import {
   ChannelListSchema,
   ChannelSchema,
   FacetListSchema,
+  FacetsSchema,
   TrendingSchema,
   type Channel,
   type ChannelList,
   type ChannelStatus,
   type Facet,
+  type Facets,
   type PlaybackReport,
   type Trending,
 } from '@tunely/shared';
@@ -55,11 +57,11 @@ export interface ChannelFilters {
   limit?: number;
 }
 
-export function channelsPath(f: ChannelFilters) {
+export function channelsPath(f: ChannelFilters, base = '/v1/channels') {
   const params = new URLSearchParams();
   for (const [k, v] of Object.entries(f)) if (v !== undefined && v !== '') params.set(k, String(v));
   const qs = params.toString();
-  return `/v1/channels${qs ? `?${qs}` : ''}`;
+  return `${base}${qs ? `?${qs}` : ''}`;
 }
 
 const isr = { next: { revalidate: CATALOG_REVALIDATE } };
@@ -79,6 +81,12 @@ export const api = {
     getJson('/v1/categories', FacetListSchema, init).then((r) => r.items),
   languages: (init = isr): Promise<Facet[]> =>
     getJson('/v1/languages', FacetListSchema, init).then((r) => r.items),
+  /** Counts for the browse dropdowns under the current filters and search. */
+  facets: (
+    { country, category, language, status, q }: ChannelFilters,
+    init: RequestInit & { next?: { revalidate?: number } } = { next: { revalidate: LIST_REVALIDATE } },
+  ): Promise<Facets> =>
+    getJson(channelsPath({ country, category, language, status, q }, '/v1/facets'), FacetsSchema, init),
   trending: (init = { next: { revalidate: 300 } }): Promise<Trending['items']> =>
     getJson('/v1/trending', TrendingSchema, init).then((r) => r.items),
 };

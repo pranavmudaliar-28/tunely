@@ -195,6 +195,24 @@ describe.skipIf(!testDbUrl)('public API', () => {
     ]);
   });
 
+  test('filtered facets count each dimension with every filter except its own', async () => {
+    const byId = (list: { id: string; count: number }[]) =>
+      Object.fromEntries(list.map((f) => [f.id, f.count]));
+    const { status, body } = await get('/v1/facets?country=IN&category=news');
+    expect(status).toBe(200);
+    expect(byId(body.countries)).toEqual({ IN: 3, DE: 1, FR: 1 }); // news everywhere, so you can switch country
+    expect(byId(body.categories)).toEqual({ news: 3, general: 1 }); // everything in India
+    expect(byId(body.languages)).toEqual({ hin: 1 });
+    expect(byId(body.statuses)).toEqual({ live: 2, offline: 1 });
+    // The counts agree with the list they describe.
+    const listed = (await get('/v1/channels?country=IN&category=news')).body.items.length;
+    expect(body.statuses.reduce((n: number, s: { count: number }) => n + s.count, 0)).toBe(listed);
+    // Search narrows every list.
+    const search = (await get('/v1/facets?q=france')).body;
+    expect(byId(search.countries)).toEqual({ FR: 1 });
+    expect(byId(search.languages)).toEqual({ eng: 1, fra: 1 });
+  });
+
   test('trending ranks by distinct viewers in the last 24 h', async () => {
     await db.execute(sql`insert into playback_reports (stream_id, platform, result, anon_session_hash, created_at) values
       (${STREAM.dw}, 'web', 'ok', 'a', now()), (${STREAM.dw}, 'web', 'ok', 'b', now()), (${STREAM.dw}, 'web', 'ok', 'b', now()),

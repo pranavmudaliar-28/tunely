@@ -64,6 +64,26 @@ export const FacetSchema = z.object({
 export type Facet = z.infer<typeof FacetSchema>;
 export const FacetListSchema = z.object({ items: z.array(FacetSchema) });
 
+/** Filters the browse counts follow (everything a channel list filters by, minus sort and paging). */
+export const FacetsQuerySchema = ChannelListQuerySchema.pick({
+  country: true,
+  category: true,
+  language: true,
+  status: true,
+  q: true,
+});
+export type FacetsQuery = z.infer<typeof FacetsQuerySchema>;
+const FacetCountSchema = z.object({ id: z.string(), count: z.number().int() });
+export type FacetCount = z.infer<typeof FacetCountSchema>;
+/** Channel counts per option, each counted with every filter except its own; names come from the facet lists. */
+export const FacetsSchema = z.object({
+  countries: z.array(FacetCountSchema),
+  categories: z.array(FacetCountSchema),
+  languages: z.array(FacetCountSchema),
+  statuses: z.array(FacetCountSchema),
+});
+export type Facets = z.infer<typeof FacetsSchema>;
+
 export const TrendingSchema = z.object({
   items: z.array(ChannelSummarySchema.extend({ viewers: z.number().int() })),
 });

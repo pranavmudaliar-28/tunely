@@ -4,10 +4,13 @@ import {
   ChannelListSchema,
   ChannelSchema,
   FacetListSchema,
+  FacetsQuerySchema,
+  FacetsSchema,
   PlaybackReportSchema,
   REPORTS_BUFFER,
   TrendingSchema,
   type ChannelSummary,
+  type FacetsQuery,
 } from '@tunely/shared';
 import { and, arrayContains, asc, desc, eq, ne, or, sql, type SQL } from 'drizzle-orm';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -18,6 +21,28 @@ import { cached, cacheKey } from '../cache';
 
 const pc = schema.publicChannels;
 const ErrorSchema = z.object({ error: z.string() });
+
+/** Escaped `%term%` for ilike. */
+const likePattern = (term: string) => `%${term.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
+
+/**
+ * The filters shared by the channel list and the browse counts, so the two always agree. `omit` leaves one out: each
+ * facet is counted with every filter except its own, so viewers can see what switching would give.
+ */
+export function channelWhere(f: FacetsQuery, omit?: 'country' | 'category' | 'language' | 'status'): SQL[] {
+  const where: SQL[] = [];
+  if (f.country && omit !== 'country') where.push(eq(pc.countryCode, f.country));
+  if (f.category && omit !== 'category') where.push(arrayContains(pc.categories, [f.category]));
+  if (f.language && omit !== 'language') where.push(arrayContains(pc.languages, [f.language]));
+  if (f.status && omit !== 'status') where.push(eq(pc.status, f.status));
+  if (f.q) {
+    const like = likePattern(f.q);
+    where.push(
+      sql`(${pc.name} ilike ${like} or ${pc.name} % ${f.q} or array_to_string(${pc.altNames}, ' ') ilike ${like} or coalesce(${pc.network}, '') ilike ${like})`,
+    );
+  }
+  return where;
+}
 
 type Row = typeof pc.$inferSelect;
 const toSummary = (r: Row): ChannelSummary => ({
@@ -76,18 +101,11 @@ export const publicRoutes =
         if (cursor === undefined) return reply.code(400).send({ error: 'invalid cursor' });
 
         return cached(redis, cacheKey(req.url), reply, async () => {
-          const where: SQL[] = [];
-          if (q.country) where.push(eq(pc.countryCode, q.country));
-          if (q.category) where.push(arrayContains(pc.categories, [q.category]));
-          if (q.language) where.push(arrayContains(pc.languages, [q.language]));
-          if (q.status) where.push(eq(pc.status, q.status));
+          const where = channelWhere(q);
 
           if (q.q) {
             const term = q.q;
-            const like = `%${term.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
-            where.push(
-              sql`(${pc.name} ilike ${like} or ${pc.name} % ${term} or array_to_string(${pc.altNames}, ' ') ilike ${like} or coalesce(${pc.network}, '') ilike ${like})`,
-            );
+            const like = likePattern(term);
             const offset = cursor && 'o' in cursor ? cursor.o : 0;
             const rows = await db
               .select()
@@ -251,6 +269,49 @@ export const publicRoutes =
         if (!result) return reply.code(404).send({ error: 'not found' });
         return result;
       },
+    );
+
+    app.get(
+      '/v1/facets',
+      {
+        schema: {
+          tags: ['facets'],
+          summary: 'Channel counts per country, category, language and status for the current filters',
+          querystring: FacetsQuerySchema,
+          response: { 200: FacetsSchema },
+        },
+      },
+      async (req, reply) =>
+        cached(redis, cacheKey(req.url), reply, async () => {
+          const f = req.query;
+          const count = sql<number>`count(*)::int`;
+          const unnested = (
+            column: typeof pc.categories | typeof pc.languages,
+            omit: 'category' | 'language',
+          ) => {
+            const sub = db
+              .select({ id: sql<string>`unnest(${column})`.as('id') })
+              .from(pc)
+              .where(and(...channelWhere(f, omit)))
+              .as('u');
+            return db.select({ id: sub.id, count }).from(sub).groupBy(sub.id);
+          };
+          const [countries, categories, languages, statuses] = await Promise.all([
+            db
+              .select({ id: pc.countryCode, count })
+              .from(pc)
+              .where(and(...channelWhere(f, 'country')))
+              .groupBy(pc.countryCode),
+            unnested(pc.categories, 'category'),
+            unnested(pc.languages, 'language'),
+            db
+              .select({ id: pc.status, count })
+              .from(pc)
+              .where(and(...channelWhere(f, 'status')))
+              .groupBy(pc.status),
+          ]);
+          return { countries, categories, languages, statuses };
+        }),
     );
 
     const facet = (path: string, summary: string, query: SQL) =>

@@ -1,7 +1,7 @@
 'use client';
 
-import type { ChannelList, ChannelStatus, Facet } from '@tunely/shared';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import type { ChannelList, ChannelStatus, Facet, FacetCount, Facets } from '@tunely/shared';
+import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useRouter } from 'next/navigation';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from 'react';
@@ -9,6 +9,7 @@ import { CloseIcon } from '@/components/ui/icons';
 import { api, type ChannelFilters } from '@/lib/api-client';
 import { channelMeta } from '@/lib/format';
 import { ChannelCard, ChannelCardSkeleton } from './channel-card';
+import { FacetCombobox, type ComboOption } from './facet-combobox';
 
 const PAGE = 48;
 const MIN_CARD = 200;
@@ -43,10 +44,14 @@ export function BrowseView({
   filters,
   firstPage,
   facets,
+  initialCounts,
 }: {
   filters: ChannelFilters;
   firstPage: ChannelList;
+  /** Names (and catalog-wide counts, used if live counts can't load). */
   facets: BrowseFacets;
+  /** Counts under the page's initial filters, fetched on the server. */
+  initialCounts: Facets | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -128,6 +133,28 @@ export function BrowseView({
   });
   const items = useMemo(() => query.data.pages.flatMap((p) => p.items), [query.data]);
 
+  // Dropdown counts follow every other filter and the search (each dimension ignores its own filter).
+  const [serverHref] = useState(href);
+  const counts = useQuery({
+    queryKey: ['facets', href],
+    queryFn: () => api.facets(filters, { cache: 'no-store' }),
+    initialData: href === serverHref && initialCounts ? initialCounts : undefined,
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
+  }).data;
+  const optionsFor = (list: Facet[], live: FacetCount[] | undefined): ComboOption[] => {
+    if (!live) return list;
+    const names = new Map(list.map((f) => [f.id, f.name]));
+    return live.map((f) => ({ id: f.id, name: names.get(f.id) ?? f.id, count: f.count }));
+  };
+  const statusCount = (s?: ChannelStatus) => {
+    if (!counts) return '';
+    const n = s
+      ? (counts.statuses.find((x) => x.id === s)?.count ?? 0)
+      : counts.statuses.reduce((sum, x) => sum + x.count, 0);
+    return ` (${n.toLocaleString('en')})`;
+  };
+
   const facetName = (key: FilterKey, id: string) => {
     const list =
       key === 'country' ? facets.countries : key === 'category' ? facets.categories : facets.languages;
@@ -176,28 +203,31 @@ export function BrowseView({
           id="b-filters"
           className={`${filtersOpen ? 'grid' : 'hidden'} grid-cols-2 gap-3 sm:grid sm:grid-cols-4`}
         >
-          <FacetSelect
+          <FacetCombobox
             id="b-country"
             label="Country"
             all="All countries"
             value={filters.country}
-            options={facets.countries}
+            valueName={filters.country && facetName('country', filters.country)}
+            options={optionsFor(facets.countries, counts?.countries)}
             onChange={(v) => set({ country: v })}
           />
-          <FacetSelect
+          <FacetCombobox
             id="b-cat"
             label="Category"
             all="All categories"
             value={filters.category}
-            options={facets.categories}
+            valueName={filters.category && facetName('category', filters.category)}
+            options={optionsFor(facets.categories, counts?.categories)}
             onChange={(v) => set({ category: v })}
           />
-          <FacetSelect
+          <FacetCombobox
             id="b-lang"
             label="Language"
             all="All languages"
             value={filters.language}
-            options={facets.languages}
+            valueName={filters.language && facetName('language', filters.language)}
+            options={optionsFor(facets.languages, counts?.languages)}
             onChange={(v) => set({ language: v })}
           />
           <div className="flex min-w-0 flex-col gap-1.5">
@@ -210,11 +240,13 @@ export function BrowseView({
               onChange={(e) => set({ status: e.target.value || undefined })}
               className="border-border bg-bg h-11 w-full min-w-0 rounded-[8px] border px-2.5 text-sm"
             >
-              <option value="">All channels</option>
-              <option value="live">Live now</option>
-              <option value="offline">Offline</option>
-              <option value="no_stream">No stream</option>
-              <option value="closed">Closed</option>
+              <option value="">All channels{statusCount()}</option>
+              {(Object.keys(STATUS_LABEL) as ChannelStatus[]).map((s) => (
+                <option key={s} value={s}>
+                  {STATUS_LABEL[s]}
+                  {statusCount(s)}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -290,36 +322,6 @@ export function BrowseView({
           </button>
         </div>
       )}
-    </div>
-  );
-}
-
-function FacetSelect(props: {
-  id: string;
-  label: string;
-  all: string;
-  value?: string;
-  options: Facet[];
-  onChange(v?: string): void;
-}) {
-  return (
-    <div className="flex min-w-0 flex-col gap-1.5">
-      <label htmlFor={props.id} className="text-text-muted text-xs font-medium">
-        {props.label}
-      </label>
-      <select
-        id={props.id}
-        value={props.value ?? ''}
-        onChange={(e) => props.onChange(e.target.value || undefined)}
-        className="border-border bg-bg h-11 w-full min-w-0 rounded-[8px] border px-2.5 text-sm"
-      >
-        <option value="">{props.all}</option>
-        {props.options.map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.name} ({o.count})
-          </option>
-        ))}
-      </select>
     </div>
   );
 }

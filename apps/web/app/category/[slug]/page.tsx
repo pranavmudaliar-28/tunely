@@ -19,13 +19,13 @@ async function category(params: Props['params']) {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug, name } = await category(params);
   return {
-    title: `${name} channels live`,
-    description: `Watch free ${name.toLowerCase()} channels live in your browser.`,
+    title: `${name} TV channels live: watch free online`,
+    description: `Watch free ${name.toLowerCase()} TV channels live from around the world, in your browser. No app, no sign-up.`,
     alternates: { canonical: `/category/${slug}` },
   };
 }
 
 export default async function CategoryPage({ params }: Props) {
   const { slug, name } = await category(params);
-  return <BrowsePage title={`${name} channels`} filters={{ category: slug }} />;
+  return <BrowsePage title={`${name} channels`} subject={`in ${name}`} filters={{ category: slug }} />;
 }

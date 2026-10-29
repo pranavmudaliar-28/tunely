@@ -66,8 +66,12 @@ Keyboard: ↑/↓ channel up/down, F fullscreen, M mute, Space pause, Ctrl/⌘+K
 
 ## Ads (Google AdSense)
 
-1. Get the site approved in AdSense, then set `NEXT_PUBLIC_ADSENSE_CLIENT=ca-pub-…` and an ad unit id (`NEXT_PUBLIC_ADSENSE_SLOT`, or one per placement: `_HOME`, `_BROWSE`, `_WATCH`) in `.env`, and restart.
+Full checklist, including what gets sites rejected: [docs/adsense.md](docs/adsense.md).
+
+1. Before applying, set `NEXT_PUBLIC_ADSENSE_CLIENT=ca-pub-…` so reviewers can see the AdSense code. After approval, add an ad unit id (`NEXT_PUBLIC_ADSENSE_SLOT`, or one per placement: `_HOME`, `_BROWSE`, `_WATCH`) and redeploy.
 2. `/ads.txt` and the AdSense verification meta tag are generated automatically.
 3. In AdSense → Privacy & messaging, enable the consent message for EEA/UK visitors.
+
+Search Console: set `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` to the HTML-tag code, redeploy, verify, then submit `/sitemap.xml`.
 
 With no publisher id, no ad code loads; in development dashed boxes show where ads will appear.

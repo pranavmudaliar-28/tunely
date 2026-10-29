@@ -4,6 +4,7 @@ import { NavLink } from './nav-link';
 import { GlobalPlayer } from '@/components/player/global-player';
 import { SearchCommand } from '@/components/search/search-command';
 import { ThemeToggle } from './theme-toggle';
+import { LEGAL_PAGES } from '@/lib/site';
 
 const NAV = [
   { href: '/', label: 'Home', icon: HomeIcon },
@@ -66,6 +67,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </a>{' '}
             project.
           </p>
+          <nav aria-label="Site" className="flex flex-wrap gap-x-5 gap-y-2">
+            {LEGAL_PAGES.map((p) => (
+              <Link key={p.href} href={p.href} className="text-text-muted hover:text-text">
+                {p.label}
+              </Link>
+            ))}
+          </nav>
         </footer>
       </div>
       <SearchCommand />

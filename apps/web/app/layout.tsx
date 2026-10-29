@@ -50,7 +50,10 @@ export const metadata: Metadata = {
   description: 'Watch free, publicly available live TV channels instantly. No app, no sign-up.',
   applicationName: 'Tunely',
   openGraph: { siteName: 'Tunely', type: 'website' },
-  // AdSense site verification.
+  // Google Search Console ownership (HTML tag method) and AdSense site verification.
+  verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION.trim() }
+    : undefined,
   other: ADSENSE_CLIENT ? { 'google-adsense-account': ADSENSE_CLIENT } : undefined,
 };
 

@@ -20,8 +20,8 @@ async function language(params: Props['params']) {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { code, name } = await language(params);
   return {
-    title: `Live TV in ${name}`,
-    description: `Watch free ${name} TV channels live in your browser.`,
+    title: `Live TV in ${name}: watch free online`,
+    description: `Watch free ${name} TV channels live in your browser on phone, computer or TV. No app, no sign-up.`,
     alternates: { canonical: `/language/${code}` },
   };
 }
@@ -32,6 +32,7 @@ export default async function LanguagePage({ params }: Props) {
   return (
     <BrowsePage
       title={native === name ? `Live TV in ${name}` : `Live TV in ${name} · ${native}`}
+      subject={`in ${name}`}
       filters={{ language: code }}
     />
   );

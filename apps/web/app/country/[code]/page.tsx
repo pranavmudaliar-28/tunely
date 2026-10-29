@@ -18,13 +18,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const code = await parse(params);
   const name = countryName(code);
   return {
-    title: `Live TV from ${name}`,
-    description: `Watch free live TV channels from ${name} in your browser. No app, no sign-up.`,
+    title: `Live TV channels from ${name}: watch free online`,
+    description: `Watch free live TV channels from ${name} in your browser on phone, computer or TV. News, entertainment, sports and more. No app, no sign-up.`,
     alternates: { canonical: `/country/${code.toLowerCase()}` },
   };
 }
 
 export default async function CountryPage({ params }: Props) {
   const code = await parse(params);
-  return <BrowsePage title={`Live TV from ${countryName(code)}`} filters={{ country: code }} />;
+  const name = countryName(code);
+  return <BrowsePage title={`Live TV from ${name}`} subject={`from ${name}`} filters={{ country: code }} />;
 }

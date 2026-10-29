@@ -5,9 +5,11 @@ import { StatusDot } from '@/components/channel/channel-logo';
 import { FavoriteButton } from '@/components/channel/favorite-button';
 import { ShareButton } from '@/components/channel/share-button';
 import { AdBanner } from '@/components/ads/ad-banner';
+import { JsonLd } from '@/components/json-ld';
 import { PlayerSlot } from '@/components/player/player-slot';
 import { api, ApiError } from '@/lib/api-client';
 import { channelMeta, countryName } from '@/lib/format';
+import { breadcrumbs, channelAbout, channelJsonLd } from '@/lib/seo';
 
 export const revalidate = 300;
 
@@ -32,13 +34,14 @@ async function getChannel(id: string) {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const c = await getChannel((await params).channelId);
-  const title = `Watch ${c.name} live`;
-  const description = `${c.name} live from ${countryName(c.country)}. Free to watch in your browser, no sign-up.`;
+  const title = `Watch ${c.name} live free online`;
+  const description = `Watch ${c.name} live from ${countryName(c.country)}, free in your browser on phone, computer or TV. No app, no sign-up.`;
   return {
     title,
     description,
     alternates: { canonical: `/watch/${encodeURIComponent(c.id)}` },
     openGraph: { title, description, images: c.logo ? [{ url: c.logo }] : undefined },
+    twitter: { card: 'summary', title, description },
     // Keep channels that can't play out of search results.
     robots: c.status === 'live' ? undefined : { index: false },
   };
@@ -46,11 +49,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function WatchPage({ params }: Props) {
   const channel = await getChannel((await params).channelId);
-  const [related, languages] = await Promise.all([
+  const [related, languages, categories] = await Promise.all([
     api.related(channel.id).catch(() => ({ items: [], nextCursor: null })),
     api.languages().catch(() => []),
+    api.categories().catch(() => []),
   ]);
   const languageNames = Object.fromEntries(languages.map((l) => [l.id, l.name]));
+  const categoryNames = Object.fromEntries(categories.map((c) => [c.id, c.name]));
+  const country = countryName(channel.country);
   const meta = channelMeta(channel, languageNames);
   const best = channel.streams.find((s) => s.webPlayable);
   const sameCountry = related.items.filter((c) => c.country === channel.country);
@@ -58,6 +64,14 @@ export default async function WatchPage({ params }: Props) {
 
   return (
     <>
+      <JsonLd data={channelJsonLd(channel, languageNames)} />
+      <JsonLd
+        data={breadcrumbs([
+          { name: 'Home', path: '/' },
+          { name: country, path: `/country/${channel.country.toLowerCase()}` },
+          { name: channel.name, path: `/watch/${encodeURIComponent(channel.id)}` },
+        ])}
+      />
       <PlayerSlot channel={channel} fallbackLineup={related.items} meta={meta} />
 
       <section className="flex flex-wrap items-start justify-between gap-x-10 gap-y-5 px-4 pt-7 pb-2 sm:px-14">
@@ -73,6 +87,9 @@ export default async function WatchPage({ params }: Props) {
             ) : (
               <StatusDot status="offline" label={STATUS_TEXT[channel.status]} />
             )}
+          </p>
+          <p className="text-text-soft max-w-[720px] text-[15px] leading-relaxed">
+            {channelAbout(channel, languageNames, categoryNames)}
           </p>
           {channel.website && (
             <p className="text-text-soft text-[15px]">
@@ -93,11 +110,12 @@ export default async function WatchPage({ params }: Props) {
         </div>
       </section>
 
-      {/* Below the player and title, never on or over the video. */}
-      <AdBanner placement="watch" className="mx-4 mt-6 sm:mx-14" />
+      {/* Below the player and title, never on or over the video; only next to a channel that plays. */}
+      {channel.status === 'live' && <AdBanner placement="watch" className="mx-4 mt-6 sm:mx-14" />}
       <div className="flex flex-col gap-10 pt-7 pb-14 pl-4 sm:pl-14">
         <ChannelRail
-          title={`More from ${countryName(channel.country)}`}
+          title={`More from ${country}`}
+          seeAllHref={`/country/${channel.country.toLowerCase()}`}
           items={sameCountry}
           languageNames={languageNames}
         />

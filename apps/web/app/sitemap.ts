@@ -1,9 +1,10 @@
 import type { MetadataRoute } from 'next';
 import { api } from '@/lib/api-client';
+import { LEGAL_PAGES, SITE_URL } from '@/lib/site';
 
 export const revalidate = 3600;
 
-const site = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+const site = SITE_URL;
 const MAX_CHANNEL_PAGES = 100; // 100 × 100 = 10k channels, well under the 50k sitemap limit
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -11,6 +12,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${site}/`, changeFrequency: 'hourly', priority: 1 },
     { url: `${site}/browse`, changeFrequency: 'daily', priority: 0.8 },
     { url: `${site}/categories`, changeFrequency: 'daily', priority: 0.6 },
+    ...LEGAL_PAGES.map((p) => ({
+      url: `${site}${p.href}`,
+      changeFrequency: 'monthly' as const,
+      priority: 0.3,
+    })),
   ];
   try {
     const [countries, categories, languages] = await Promise.all([

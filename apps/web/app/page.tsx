@@ -6,6 +6,7 @@ import { ChannelRail, Scroller } from '@/components/channel/channel-rail';
 import { ContinueWatching } from '@/components/channel/continue-watching';
 import { HeroCarousel, type HeroSlide } from '@/components/channel/hero-carousel';
 import { HeroWall } from '@/components/channel/hero-wall';
+import { HomeAbout } from '@/components/home-about';
 import { api } from '@/lib/api-client';
 import { channelMeta, countryName, nativeLanguageName, tint } from '@/lib/format';
 
@@ -201,6 +202,7 @@ export default async function HomePage() {
             />
           </Fragment>
         ))}
+        <HomeAbout />
       </div>
     </>
   );

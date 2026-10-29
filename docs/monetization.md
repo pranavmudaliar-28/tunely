@@ -13,13 +13,13 @@ variable is set, and removing a variable switches that feature off again.
 3. In Vercel, set:
    - `NEXT_PUBLIC_ADSTERRA_KEY_728X90` = the 728×90 key
    - `NEXT_PUBLIC_ADSTERRA_KEY_320X50` = the 320×50 key
-   - Only if the snippet loads `invoke.js` from a domain other than `www.highperformanceformat.com`: also set
-     `NEXT_PUBLIC_ADSTERRA_HOST` to that domain.
+   - `NEXT_PUBLIC_ADSTERRA_SCRIPT` = the snippet's `<script src="…">` address with the key replaced by `{key}`,
+     e.g. `https://bauval.org/22/{key}`
 4. Redeploy. Banners appear in the existing ad spots: the home page between rails, under browse grids, and
    below the title on watch pages of live channels. They never appear on the video.
 
 **Only create Banner units.** Don't add Popunder, Social Bar or Direct Link codes: they annoy viewers, cost you
-visitors, and get the site flagged by browsers. Banners run in a sandbox, so an ad can't redirect the page.
+visitors, and get the site flagged by browsers. Ask Adsterra support to block gambling/betting ads for your site: real-money betting ads are restricted in India.
 
 If AdSense approves the site later, set `NEXT_PUBLIC_ADSENSE_CLIENT` and a slot id. AdSense then replaces
 Adsterra automatically.

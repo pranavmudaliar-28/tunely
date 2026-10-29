@@ -25,13 +25,16 @@ const clean = (v: string | undefined, pattern: RegExp) =>
 export const ADSTERRA = {
   wide: clean(process.env.NEXT_PUBLIC_ADSTERRA_KEY_728X90, /^[a-z0-9]{8,64}$/i),
   narrow: clean(process.env.NEXT_PUBLIC_ADSTERRA_KEY_320X50, /^[a-z0-9]{8,64}$/i),
-  host: clean(process.env.NEXT_PUBLIC_ADSTERRA_HOST, /^[a-z0-9.-]+$/i) ?? 'www.highperformanceformat.com',
+  /** The banner code's script src with the key replaced by {key}; Adsterra uses different hosts per account. */
+  script:
+    clean(process.env.NEXT_PUBLIC_ADSTERRA_SCRIPT, /^https:\/\/[a-z0-9.-]+\/[\w./-]*\{key\}[\w./-]*$/i) ??
+    'https://www.highperformanceformat.com/{key}/invoke.js',
 };
 
 /** The HTML Adsterra's banner code expects, to run inside a sandboxed iframe. */
-export function adsterraDoc(key: string, width: number, height: number, host = ADSTERRA.host): string {
+export function adsterraDoc(key: string, width: number, height: number, script = ADSTERRA.script): string {
   const options = JSON.stringify({ key, format: 'iframe', height, width, params: {} });
-  return `<!doctype html><html><body style="margin:0"><script>atOptions=${options};</script><script src="https://${host}/${key}/invoke.js"></script></body></html>`;
+  return `<!doctype html><html><body style="margin:0;overflow:hidden"><script>atOptions=${options};</script><script src="${script.replace('{key}', key)}"></script></body></html>`;
 }
 
 /** "ca-pub-123" → "pub-123", the form ads.txt uses. */

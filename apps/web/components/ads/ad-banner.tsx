@@ -98,8 +98,10 @@ function AdsterraBanner({ className }: { className?: string }) {
         width={pick.w}
         height={pick.h}
         srcDoc={adsterraDoc(pick.key, pick.w, pick.h)}
-        // Scripts and new-tab clicks only: an ad can't read our page or redirect it.
-        sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
+        // Adsterra serves nothing without same-origin (tested), so this is no stronger than AdSense's in-page
+        // script; it still keeps the ad's globals and document.write out of our page and opens clicks in a new tab.
+        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+        scrolling="no"
         loading="lazy"
         className="max-w-full border-0"
       />

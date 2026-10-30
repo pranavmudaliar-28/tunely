@@ -43,7 +43,9 @@ export function ChannelLogo({
           src={logo}
           alt=""
           loading={eager ? 'eager' : 'lazy'}
-          decoding="async"
+          // Eager logos are the page's largest image: fetch them first and paint them as soon as they arrive.
+          fetchPriority={eager ? 'high' : undefined}
+          decoding={eager ? 'sync' : 'async'}
           referrerPolicy="no-referrer"
           onError={() => setFailed(true)}
           className="h-3/5 w-3/5 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.35)] transition-transform duration-300 group-hover:scale-105 motion-reduce:transform-none"

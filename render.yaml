@@ -33,6 +33,8 @@ services:
         generateValue: true
       - key: REPORT_HASH_SECRET
         generateValue: true
+      - key: INTERNAL_API_KEY
+        sync: false # same value as on Vercel; lets server renders skip the rate limit
       - key: CORS_ORIGINS
         sync: false # https://<your-project>.vercel.app
       - key: TRUST_PROXY

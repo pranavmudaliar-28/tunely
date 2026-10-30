@@ -35,6 +35,7 @@ Do the steps in order: the website build calls the live API.
    | `NODE_ENV`           | `production`                                        | `production`                 |
    | `ADMIN_TOKEN`        | a generated secret                                  | –                            |
    | `REPORT_HASH_SECRET` | a generated secret                                  | –                            |
+   | `INTERNAL_API_KEY`   | a generated secret, same value on the web server    | –                            |
    | `CORS_ORIGINS`       | `https://yourdomain.com,https://www.yourdomain.com` | –                            |
    | `TRUST_PROXY`        | `true`                                              | –                            |
 

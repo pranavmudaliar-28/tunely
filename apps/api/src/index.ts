@@ -25,6 +25,7 @@ const app = buildApp({
   reportHashSecret: env('REPORT_HASH_SECRET'),
   corsOrigins,
   trustProxy: process.env.TRUST_PROXY === 'true',
+  internalApiKey: process.env.INTERNAL_API_KEY?.trim() || undefined,
 });
 app.addHook('onClose', async () => {
   await catalog.close();

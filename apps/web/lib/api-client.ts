@@ -32,6 +32,10 @@ export class ApiError extends Error {
   }
 }
 
+// Server renders all come from a few Vercel IPs, so they carry a key that exempts them from the API's per-IP limit.
+// Server-only variable (no NEXT_PUBLIC_ prefix), so it never reaches the browser.
+const INTERNAL_API_KEY = typeof window === 'undefined' ? process.env.INTERNAL_API_KEY?.trim() : undefined;
+
 async function getJson<S extends z.ZodType>(
   path: string,
   schema: S,
@@ -39,7 +43,10 @@ async function getJson<S extends z.ZodType>(
 ) {
   // The version is part of the URL so Next's data cache drops entries from before an API change.
   const versioned = `${path}${path.includes('?') ? '&' : '?'}v=${API_DATA_VERSION}`;
-  const res = await fetch(`${API_URL}${versioned}`, init);
+  const res = await fetch(
+    `${API_URL}${versioned}`,
+    INTERNAL_API_KEY ? { ...init, headers: { ...init?.headers, 'x-internal-key': INTERNAL_API_KEY } } : init,
+  );
   if (!res.ok) throw new ApiError(res.status);
   return schema.parse(await res.json()) as z.infer<S>;
 }

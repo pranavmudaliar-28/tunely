@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ADSENSE_CLIENT, ADSTERRA, adSlot, adsterraDoc, type AdPlacement } from '@/lib/ads';
 import { cn } from '@/lib/utils';
 
@@ -72,14 +72,28 @@ const subscribeWide = (cb: () => void) => {
   return () => mq.removeEventListener('change', cb);
 };
 
+/** Load an ad only when it's about to be seen: the script runs on the page's own thread. */
+const AD_LOAD_AHEAD = '300px 0px';
+
 /** One Adsterra banner sized for the screen (only the visible size loads, so no hidden impressions). */
 function AdsterraBanner({ className }: { className?: string }) {
   const pathname = usePathname();
+  const box = useRef<HTMLElement>(null);
+  const [near, setNear] = useState(false);
   const wide = useSyncExternalStore(
     subscribeWide,
     () => window.matchMedia(WIDE).matches,
     () => null,
   );
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([entry]) => entry?.isIntersecting && setNear(true), {
+      rootMargin: AD_LOAD_AHEAD,
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [wide]);
   if (wide === null) return null;
   const pick =
     wide && ADSTERRA.wide
@@ -89,22 +103,26 @@ function AdsterraBanner({ className }: { className?: string }) {
         : null;
   if (!pick) return null;
   return (
-    <aside aria-label="Advertisement" className={cn('flex flex-col items-center gap-1', className)}>
+    <aside ref={box} aria-label="Advertisement" className={cn('flex flex-col items-center gap-1', className)}>
       <span className="text-text-muted self-start text-[11px] tracking-wide uppercase">Advertisement</span>
-      <iframe
-        // A fresh banner per page.
-        key={pathname}
-        title="Advertisement"
-        width={pick.w}
-        height={pick.h}
-        srcDoc={adsterraDoc(pick.key, pick.w, pick.h)}
-        // Adsterra serves nothing without same-origin (tested), so this is no stronger than AdSense's in-page
-        // script; it still keeps the ad's globals and document.write out of our page and opens clicks in a new tab.
-        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-        scrolling="no"
-        loading="lazy"
-        className="max-w-full border-0"
-      />
+      {/* Same size before and after loading, so the page doesn't jump. */}
+      <div style={{ width: pick.w, height: pick.h, maxWidth: '100%' }}>
+        {near && (
+          <iframe
+            // A fresh banner per page.
+            key={pathname}
+            title="Advertisement"
+            width={pick.w}
+            height={pick.h}
+            srcDoc={adsterraDoc(pick.key, pick.w, pick.h)}
+            // Adsterra serves nothing without same-origin (tested), so this is no stronger than AdSense's in-page
+            // script; it still keeps the ad's globals and document.write out of our page and opens clicks in a new tab.
+            sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+            scrolling="no"
+            className="max-w-full border-0"
+          />
+        )}
+      </div>
     </aside>
   );
 }

@@ -14,6 +14,7 @@ import {
 import type { Redis } from 'ioredis';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import { secretMatches } from './admin-auth';
 import { adminRoutes } from './routes/admin';
 import { devRoutes } from './routes/dev';
 import { healthRoutes } from './routes/health';
@@ -29,6 +30,8 @@ export interface Deps {
   trustProxy?: boolean;
   /** Global per-client request budget per minute. */
   rateLimitPerMin?: number;
+  /** Requests with this value in `x-internal-key` skip the rate limit: our own web server, see index.ts. */
+  internalApiKey?: string;
 }
 
 export function buildApp(deps: Deps) {
@@ -55,8 +58,14 @@ export function buildApp(deps: Deps) {
     nameSpace: 'rl:',
     // The IP only ever exists as a hash inside a key that expires after the window.
     keyGenerator: (req) => createHash('sha256').update(req.ip).digest('base64url').slice(0, 22),
-    // Uptime pingers (cron-job.org, UptimeRobot) must never be rate limited.
-    allowList: (req) => req.url.startsWith('/v1/health'),
+    // Uptime pingers (cron-job.org, UptimeRobot) must never be rate limited. Nor must our own web server: every
+    // server render comes from a few Vercel IPs, so a crawl would otherwise look like one abusive client.
+    allowList: (req) => {
+      const given = req.headers['x-internal-key'];
+      const internal =
+        deps.internalApiKey && typeof given === 'string' && secretMatches(given, deps.internalApiKey);
+      return Boolean(internal) || req.url.startsWith('/v1/health');
+    },
   });
 
   app.register(swagger, {

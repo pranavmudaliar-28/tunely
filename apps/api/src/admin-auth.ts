@@ -13,3 +13,6 @@ export function requireAdmin(token: string | undefined) {
 }
 
 const sha = (s: string) => createHash('sha256').update(s).digest();
+
+/** Constant-time secret comparison (hashing first makes the lengths equal). */
+export const secretMatches = (given: string, expected: string) => timingSafeEqual(sha(given), sha(expected));

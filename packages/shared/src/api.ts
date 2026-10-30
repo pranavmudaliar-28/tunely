@@ -46,6 +46,12 @@ export const ChannelListQuerySchema = z.object({
   sort: z.enum(['name', 'best']).default('name'),
   cursor: z.string().max(200).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(48),
+  /** Comma-separated channel ids (up to 50): fetch a curated set in one request. */
+  ids: z
+    .string()
+    .max(2000)
+    .regex(/^[\w.@-]+(,[\w.@-]+)*$/)
+    .optional(),
 });
 export type ChannelListQuery = z.infer<typeof ChannelListQuerySchema>;
 

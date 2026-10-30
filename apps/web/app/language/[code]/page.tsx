@@ -2,8 +2,16 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { BrowsePage } from '@/components/channel/browse-page';
 import { api } from '@/lib/api-client';
-import { nativeLanguageName } from '@/lib/format';
-import { facetRobots } from '@/lib/seo';
+import { countryName, nativeLanguageName } from '@/lib/format';
+import {
+  describable,
+  facetRobots,
+  joinNames,
+  liveDescription,
+  liveTotal,
+  nameLookup,
+  topNames,
+} from '@/lib/seo';
 
 // Channel statuses change as streams are checked: refresh every 5 minutes.
 export const revalidate = 300;
@@ -20,11 +28,22 @@ async function language(params: Props['params']) {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { code, name } = await language(params);
-  const live = await api.facets({ status: 'live' }).catch(() => null);
+  // Same request as the page's own counts, so Next's fetch cache serves both.
+  const [counts, categories] = await Promise.all([
+    api.facets({ language: code }).catch(() => null),
+    api.categories().catch(() => []),
+  ]);
+  const countries = counts ? topNames(counts.countries, countryName) : [];
+  const cats = counts ? topNames(describable(counts.categories), nameLookup(categories)) : [];
   return {
-    robots: facetRobots(live?.languages, code),
-    title: `Live TV in ${name}: watch free online`,
-    description: `Watch free ${name} TV channels live in your browser on phone, computer or TV. No app, no sign-up.`,
+    robots: facetRobots(counts ? liveTotal(counts) : undefined),
+    title: `${name} Live TV Channels List: Watch Free Online`,
+    description: counts
+      ? liveDescription(liveTotal(counts), `${name} TV channels`, [
+          countries.length ? `from ${joinNames(countries)}` : '',
+          cats.length ? `including ${joinNames(cats.map((c) => c.toLowerCase()))} channels` : '',
+        ])
+      : `Watch free ${name} TV channels live in your browser on phone, computer or TV. No app, no sign-up.`,
     alternates: { canonical: `/language/${code}` },
   };
 }

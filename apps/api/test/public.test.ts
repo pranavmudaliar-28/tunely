@@ -60,6 +60,15 @@ describe.skipIf(!testDbUrl)('public API', () => {
     await redis.flushdb();
   });
 
+  test('fetches a curated set of channels by id in one request', async () => {
+    expect(ids((await get('/v1/channels?ids=DWNews.de,DDNews.in,Nope.xx')).body)).toEqual([
+      'DDNews.in',
+      'DWNews.de',
+    ]);
+    expect(ids((await get('/v1/channels?ids=DDNews.in,Dead.in&status=live')).body)).toEqual(['DDNews.in']);
+    expect((await get('/v1/channels?ids=bad%20id')).status).toBe(400);
+  });
+
   test('filters by country, category and language', async () => {
     expect(ids((await get('/v1/channels?country=in')).body)).toEqual([
       'DDNational.in',

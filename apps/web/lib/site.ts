@@ -25,6 +25,7 @@ export const AFFILIATE = {
 
 /** Pages linked from the footer and listed in the sitemap (the trust pages AdSense reviewers look for). */
 export const FOOTER_PAGES = [
+  { href: '/app', label: 'Get the app' },
   { href: '/watch-on-tv', label: 'Watch on TV' },
   { href: '/about', label: 'About' },
   { href: '/privacy', label: 'Privacy' },

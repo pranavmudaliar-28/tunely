@@ -73,3 +73,8 @@ Choices made while building, newest last.
   - **Thin facet pages stay out of search.** Country, category and language pages with fewer than 10 live channels (`INDEX_MIN_LIVE`) render `noindex, follow` and are left out of the sitemap, computed from `GET /v1/facets?status=live`. If counts can't load, pages stay indexable rather than all disappearing for the 5-minute cache window.
   - **Filtered Live TV URLs** (`/browse?…`) are `noindex, follow` in addition to the `/browse` canonical.
   - **Home** gets a canonical and a descriptive title. Its only `h1` is "Free live TV from around the world"; the hero's rotating channel name became an `h2` with no visual change.
+- **Pages for what people actually search (30 Oct 2026).** Google autocomplete showed big "app", "{language} live TV channels list" and channel-name searches.
+  - **`/app`** is an honest install page for the PWA (no APK, Play Store or offline claims) with `WebApplication` JSON-LD and no ratings. It's linked in the footer, which also puts it in the sitemap.
+  - **Facet page titles** read "{Country/Language} Live TV Channels List: Watch Free Online". Descriptions carry the live count and the top languages, categories or countries, from the same `/v1/facets` request the page already makes, so Next dedupes it.
+  - **The home page features the national Indian news brands** in a curated "Top Indian news channels" rail. They stream free on their own sites.
+  - **`/v1/channels?ids=`** fetches a curated set in one request: server-side renders share the API's per-IP rate limit, so 12 detail calls per home render was too many.

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { AdBanner } from '@/components/ads/ad-banner';
 import { api, type ChannelFilters } from '@/lib/api-client';
-import { browseIntro } from '@/lib/seo';
+import { browseIntro, liveTotal } from '@/lib/seo';
 import { BrowseView } from './browse-view';
 
 /** Server half of every browse-style page: heading, first page and facets rendered on the server. */
@@ -45,7 +45,7 @@ export async function BrowsePage({
         <p className="text-text-muted text-[15px]">
           {intro ??
             (subject
-              ? browseIntro(subject, facet?.count)
+              ? browseIntro(subject, facet?.count, counts ? liveTotal(counts) : undefined)
               : 'Every channel we know of. Live ones come first; the rest are labelled offline, no stream or closed.')}
         </p>
       </div>

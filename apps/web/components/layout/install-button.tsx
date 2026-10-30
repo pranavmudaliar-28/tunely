@@ -45,8 +45,11 @@ const subscribe = (l: () => void) => {
   return () => listeners.delete(l);
 };
 
-/** "Install" in the nav: one tap on Chrome/Edge/Android, a how-to on iPhone. Hidden once installed. */
-export function InstallButton() {
+/**
+ * "Install" in the nav (or a large "Install Tunely" button on /app): one tap on Chrome/Edge/Android, a how-to on
+ * iPhone. Hidden once installed, or where the browser can't install.
+ */
+export function InstallButton({ variant = 'nav' }: { variant?: 'nav' | 'cta' }) {
   const current = useSyncExternalStore(subscribe, mode, () => null);
   const [help, setHelp] = useState(false);
   if (!current) return null;
@@ -67,10 +70,14 @@ export function InstallButton() {
         type="button"
         onClick={() => void install()}
         aria-label="Install Tunely as an app"
-        className="text-text-muted hover:text-text flex min-h-11 w-16 flex-col items-center justify-center gap-1 rounded-[10px] py-2 text-[11px] font-medium min-[720px]:w-[72px]"
+        className={
+          variant === 'cta'
+            ? 'bg-text text-bg flex h-12 w-fit items-center gap-2 rounded-[8px] px-6 text-[15px] font-bold'
+            : 'text-text-muted hover:text-text flex min-h-11 w-16 flex-col items-center justify-center gap-1 rounded-[10px] py-2 text-[11px] font-medium min-[720px]:w-[72px]'
+        }
       >
-        <InstallIcon />
-        Install
+        <InstallIcon size={variant === 'cta' ? 20 : 22} />
+        {variant === 'cta' ? 'Install Tunely' : 'Install'}
       </button>
       {help && (
         <div

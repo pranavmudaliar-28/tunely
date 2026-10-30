@@ -51,12 +51,28 @@ const RAIL_PRIORITY = [
   'general',
 ];
 const RAIL_LAST = ['shop'];
+// The national news brands people search for by name ("aaj tak live"). They stream free on their own sites.
+// Curated by iptv-org id: update if an id changes upstream; missing or offline ones simply drop out.
+const FEATURED_NEWS_IN = [
+  'AajTak.in',
+  'ABPNews.in',
+  'ZeeNews.in',
+  'IndiaTV.in',
+  'NDTVIndia.in',
+  'News18India.in',
+  'RepublicBharat.in',
+  'TV9Bharatvarsh.in',
+  'TimesNowNavbharat.in',
+  'DDNews.in',
+  'NDTV24x7.in',
+  'RepublicTV.in',
+];
 /** Categories with fewer live channels than this get no rail (still reachable from Categories). */
 const MIN_RAIL_ITEMS = 6;
 
 async function load() {
   const settle = <T,>(p: Promise<T>, fallback: T) => p.catch(() => fallback);
-  const [trending, local, worldNews, categories, languages] = await Promise.all([
+  const [trending, local, worldNews, categories, languages, newsIn] = await Promise.all([
     settle(api.trending(), []),
     settle(api.channels({ country: HOME_COUNTRY, status: 'live', limit: 12 }), {
       items: [],
@@ -68,7 +84,19 @@ async function load() {
     }),
     settle(api.categories(), [] as Facet[]),
     settle(api.languages(), [] as Facet[]),
+    // One request for the whole set: SSR calls share the API's per-IP rate limit.
+    settle(
+      api.channels({ ids: FEATURED_NEWS_IN.join(','), status: 'live', limit: FEATURED_NEWS_IN.length }),
+      {
+        items: [],
+        nextCursor: null,
+      },
+    ),
   ]);
+  // Keep the curated order; anything not in the list (an older API ignoring `ids`) is dropped.
+  const featuredNews = newsIn.items
+    .filter((c) => FEATURED_NEWS_IN.includes(c.id))
+    .sort((a, b) => FEATURED_NEWS_IN.indexOf(a.id) - FEATURED_NEWS_IN.indexOf(b.id));
   // A rail for every category: popular ones first, then the rest by size, shopping last.
   // Each rail shows its best live channels (health score, then resolution).
   const rank = (id: string) => {
@@ -104,11 +132,19 @@ async function load() {
       ).items,
     })),
   );
-  return { trending, local: local.items, worldNews: worldNews.items, categoryRails, languages, heroPicks };
+  return {
+    trending,
+    local: local.items,
+    worldNews: worldNews.items,
+    featuredNews,
+    categoryRails,
+    languages,
+    heroPicks,
+  };
 }
 
 export default async function HomePage() {
-  const { trending, local, worldNews, categoryRails, languages, heroPicks } = await load();
+  const { trending, local, worldNews, featuredNews, categoryRails, languages, heroPicks } = await load();
   const languageNames = Object.fromEntries(languages.map((l) => [l.id, l.name]));
   // One slide per category: its best live channel (score, then resolution), most watched first.
   const seen = new Set<string>();
@@ -172,6 +208,14 @@ export default async function HomePage() {
           languageNames={languageNames}
           eager
         />
+        {featuredNews.length >= 4 && (
+          <ChannelRail
+            title="Top Indian news channels"
+            items={featuredNews}
+            seeAllHref="/category/news"
+            languageNames={languageNames}
+          />
+        )}
         {languages.length > 0 && (
           <section aria-labelledby="langs">
             <h2 id="langs" className="pb-3.5 text-xl font-bold">

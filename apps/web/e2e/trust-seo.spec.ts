@@ -38,4 +38,24 @@ test('crawlers get links, one home h1 and the right robots rules in raw HTML', a
   expect(await html('/browse?q=zee')).toMatch(/<meta name="robots" content="noindex, follow"/);
   expect(await html('/browse')).not.toContain('noindex');
   expect(await html('/language/abk')).toMatch(/<meta name="robots" content="noindex, follow"/);
+  // Facet titles and descriptions carry what people search for, with live counts.
+  expect(country).toMatch(/<title>India Live TV Channels List: Watch Free Online/);
+  expect(country).toMatch(/<meta name="description" content="[\d,]+ TV channels from India are live now/);
+});
+
+test('the app page explains installing and is linked from the footer', async ({ page }) => {
+  await page.goto('/browse');
+  await page.getByRole('navigation', { name: 'Site' }).getByRole('link', { name: 'Get the app' }).click();
+  await expect(page).toHaveURL(/\/app$/);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Get the free live TV app');
+  await expect(page.getByRole('heading', { name: 'iPhone and iPad' })).toBeVisible();
+  const types = await page
+    .locator('script[type="application/ld+json"]')
+    .evaluateAll((els) => els.map((e) => JSON.parse(e.textContent ?? '{}')['@type']));
+  expect(types).toEqual(expect.arrayContaining(['WebApplication', 'BreadcrumbList']));
+});
+
+test('home features the top Indian news channels', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Top Indian news channels' })).toBeVisible();
 });

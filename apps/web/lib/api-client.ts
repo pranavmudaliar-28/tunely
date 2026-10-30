@@ -49,6 +49,8 @@ export interface ChannelFilters {
   category?: string;
   language?: string;
   q?: string;
+  /** Comma-separated channel ids, for a curated set. */
+  ids?: string;
   /** 'live' = playable now; omit for the full directory */
   status?: ChannelStatus;
   /** 'best': highest health score and resolution first */

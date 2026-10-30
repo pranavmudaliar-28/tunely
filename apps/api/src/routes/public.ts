@@ -12,7 +12,7 @@ import {
   type ChannelSummary,
   type FacetsQuery,
 } from '@tunely/shared';
-import { and, arrayContains, asc, desc, eq, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, arrayContains, asc, desc, eq, inArray, ne, or, sql, type SQL } from 'drizzle-orm';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
@@ -102,6 +102,7 @@ export const publicRoutes =
 
         return cached(redis, cacheKey(req.url), reply, async () => {
           const where = channelWhere(q);
+          if (q.ids) where.push(inArray(pc.id, q.ids.split(',').slice(0, 50)));
 
           if (q.q) {
             const term = q.q;

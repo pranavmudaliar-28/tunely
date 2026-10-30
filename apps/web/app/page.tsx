@@ -3,10 +3,11 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Fragment } from 'react';
 import { AdBanner } from '@/components/ads/ad-banner';
-import { ChannelRail, Scroller } from '@/components/channel/channel-rail';
+import { ChannelRail, RAIL_ITEMS, Scroller } from '@/components/channel/channel-rail';
 import { ContinueWatching } from '@/components/channel/continue-watching';
 import { HeroCarousel, type HeroSlide } from '@/components/channel/hero-carousel';
 import { HeroWall } from '@/components/channel/hero-wall';
+import { LazyRail } from '@/components/channel/lazy-rail';
 import { LocalRail } from '@/components/channel/local-rail';
 import { HomeAbout } from '@/components/home-about';
 import { api } from '@/lib/api-client';
@@ -69,10 +70,12 @@ const FEATURED_NEWS_IN = [
 ];
 /** Categories with fewer live channels than this get no rail (still reachable from Categories). */
 const MIN_RAIL_ITEMS = 6;
+/** Category rails built on the server; the rest load as the viewer scrolls (see LazyRail). */
+const EAGER_CATEGORY_RAILS = 2;
 
 async function load() {
   const settle = <T,>(p: Promise<T>, fallback: T) => p.catch(() => fallback);
-  const [trending, local, worldNews, categories, languages, newsIn] = await Promise.all([
+  const [trending, local, worldNews, categories, languages, newsIn, liveCounts] = await Promise.all([
     settle(api.trending(), []),
     settle(api.channels({ country: HOME_COUNTRY, status: 'live', limit: 12 }), {
       items: [],
@@ -92,6 +95,7 @@ async function load() {
         nextCursor: null,
       },
     ),
+    settle(api.facets({ status: 'live' }), null),
   ]);
   // Keep the curated order; anything not in the list (an older API ignoring `ids`) is dropped.
   const featuredNews = newsIn.items
@@ -103,20 +107,21 @@ async function load() {
     const i = RAIL_PRIORITY.indexOf(id);
     return i === -1 ? (RAIL_LAST.includes(id) ? 1000 : 100) : i;
   };
-  const railCategories = [...categories].sort((a, b) => rank(a.id) - rank(b.id) || b.count - a.count);
-  const categoryRails = (
-    await Promise.all(
-      railCategories.map(async (c) => ({
-        facet: c,
-        items: (
-          await settle(api.channels({ category: c.id, status: 'live', sort: 'best', limit: 12 }), {
+  const liveIn = (id: string) => liveCounts?.categories.find((f) => f.id === id)?.count ?? 0;
+  const railCategories = categories
+    .filter((c) => !liveCounts || liveIn(c.id) >= MIN_RAIL_ITEMS)
+    .sort((a, b) => rank(a.id) - rank(b.id) || b.count - a.count);
+  const eagerRails = await Promise.all(
+    railCategories.slice(0, EAGER_CATEGORY_RAILS).map(
+      async (c) =>
+        (
+          await settle(api.channels({ category: c.id, status: 'live', sort: 'best', limit: RAIL_ITEMS }), {
             items: [],
             nextCursor: null,
           })
         ).items,
-      })),
-    )
-  ).filter((r) => r.items.length >= MIN_RAIL_ITEMS);
+    ),
+  );
   // Hero picks: the best-scoring live channels of the categories viewers care most about.
   const heroCategories = HERO_CATEGORIES.map((id) => categories.find((c) => c.id === id)).filter(
     (c): c is Facet => Boolean(c),
@@ -137,14 +142,16 @@ async function load() {
     local: local.items,
     worldNews: worldNews.items,
     featuredNews,
-    categoryRails,
+    railCategories,
+    eagerRails,
     languages,
     heroPicks,
   };
 }
 
 export default async function HomePage() {
-  const { trending, local, worldNews, featuredNews, categoryRails, languages, heroPicks } = await load();
+  const { trending, local, worldNews, featuredNews, railCategories, eagerRails, languages, heroPicks } =
+    await load();
   const languageNames = Object.fromEntries(languages.map((l) => [l.id, l.name]));
   // One slide per category: its best live channel (score, then resolution), most watched first.
   const seen = new Set<string>();
@@ -245,15 +252,19 @@ export default async function HomePage() {
           seeAllHref="/browse?category=news&language=eng"
           languageNames={languageNames}
         />
-        {categoryRails.map(({ facet, items }, i) => (
+        {railCategories.map((facet, i) => (
           <Fragment key={facet.id}>
             {i % AD_EVERY_RAILS === 0 && <AdBanner placement="home" className="mr-4 sm:mr-14" />}
-            <ChannelRail
-              title={facet.name}
-              items={items}
-              seeAllHref={`/category/${facet.id}`}
-              languageNames={languageNames}
-            />
+            {i < EAGER_CATEGORY_RAILS ? (
+              <ChannelRail
+                title={facet.name}
+                items={eagerRails[i] ?? []}
+                seeAllHref={`/category/${facet.id}`}
+                languageNames={languageNames}
+              />
+            ) : (
+              <LazyRail category={facet.id} title={facet.name} languageNames={languageNames} />
+            )}
           </Fragment>
         ))}
       </div>

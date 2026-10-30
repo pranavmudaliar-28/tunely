@@ -8,6 +8,29 @@ import { channelMeta } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { ChannelCard } from './channel-card';
 
+/** Channels per rail. */
+export const RAIL_ITEMS = 12;
+
+/** Rail title with an optional "See all" link. */
+export function RailHeader({ id, title, seeAllHref }: { id?: string; title: string; seeAllHref?: string }) {
+  return (
+    <div className="flex items-baseline gap-3 pr-4 pb-3.5 sm:pr-14">
+      <h2 id={id} className="text-xl font-bold">
+        {title}
+      </h2>
+      <span className="grow" />
+      {seeAllHref && (
+        <Link
+          href={seeAllHref}
+          className="text-text-muted hover:text-text text-sm font-semibold no-underline"
+        >
+          See all <span aria-hidden="true">›</span>
+        </Link>
+      )}
+    </div>
+  );
+}
+
 /** Horizontal channel row. Prev/next buttons sit on the row's edges and only show when there is more to scroll. */
 export function ChannelRail({
   title,
@@ -31,20 +54,7 @@ export function ChannelRail({
       // Many rails on the home page: let the browser skip rendering the ones far off-screen.
       className="[contain-intrinsic-size:auto_300px] [content-visibility:auto]"
     >
-      <div className="flex items-baseline gap-3 pr-4 pb-3.5 sm:pr-14">
-        <h2 id={headingId} className="text-xl font-bold">
-          {title}
-        </h2>
-        <span className="grow" />
-        {seeAllHref && (
-          <Link
-            href={seeAllHref}
-            className="text-text-muted hover:text-text text-sm font-semibold no-underline"
-          >
-            See all <span aria-hidden="true">›</span>
-          </Link>
-        )}
-      </div>
+      <RailHeader id={headingId} title={title} seeAllHref={seeAllHref} />
       <Scroller label={title}>
         {items.map((c, i) => (
           <div key={c.id} className="w-[240px] shrink-0 snap-start sm:w-[280px]">

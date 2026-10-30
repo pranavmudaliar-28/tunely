@@ -293,8 +293,9 @@ export async function writeCatalog(db: Db, c: PreparedCatalog): Promise<Record<s
       schema.channelCuration.channelId,
       [],
     );
+    // Hidden and removed decisions stay: a taken-down channel that returns upstream must stay down.
     await tx.execute(
-      sql`delete from channel_curation k where not exists (select 1 from channels c where c.id = k.channel_id)`,
+      sql`delete from channel_curation k where k.status not in ('hidden', 'removed') and not exists (select 1 from channels c where c.id = k.channel_id)`,
     );
   });
   return counts;
@@ -322,10 +323,27 @@ async function deleteMissing(
   return res.rowCount ?? 0;
 }
 
+/** A broken upstream file must not wipe the catalog or unblock channels: under half of what we hold fails the run. */
+async function assertPlausible(db: Db, c: PreparedCatalog) {
+  const files = [
+    ['channels', schema.channels, c.channels],
+    ['streams', schema.streams, c.streams],
+    ['blocklist', schema.blocklist, c.blocklist],
+  ] as const;
+  for (const [name, table, rows] of files) {
+    const stored = await db.$count(table);
+    if (rows.length < stored / 2) {
+      throw new Error(`iptv-org ${name}: ${rows.length} rows, ${stored} stored; refusing to sync`);
+    }
+  }
+}
+
 export async function runCatalogSync(db: Db, raw?: RawCatalog): Promise<Record<string, number>> {
   const [run] = await db.insert(schema.syncRuns).values({}).returning({ id: schema.syncRuns.id });
   try {
-    const counts = await writeCatalog(db, prepareCatalog(raw ?? (await downloadCatalog())));
+    const catalog = prepareCatalog(raw ?? (await downloadCatalog()));
+    await assertPlausible(db, catalog);
+    const counts = await writeCatalog(db, catalog);
     await refreshPublicChannels(db);
     await db
       .update(schema.syncRuns)

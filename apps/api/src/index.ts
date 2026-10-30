@@ -3,6 +3,7 @@ import { QUEUE } from '@tunely/shared';
 import { Queue } from 'bullmq';
 import { Redis } from 'ioredis';
 import { buildApp } from './app';
+import { REDIS_OPTIONS } from './cache';
 import { parseOrigins } from './cors';
 
 const env = (name: string) => {
@@ -12,11 +13,7 @@ const env = (name: string) => {
 };
 
 const { db, pool } = createDb(env('DATABASE_URL'));
-// family: 0 lets ioredis use IPv6 too (Railway's private network is IPv6-only).
-const redis = new Redis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
-  maxRetriesPerRequest: null,
-  family: 0,
-});
+const redis = new Redis(process.env.REDIS_URL ?? 'redis://localhost:6379', REDIS_OPTIONS);
 const catalog = new Queue(QUEUE.catalog, { connection: redis });
 const corsOrigins = parseOrigins(process.env.CORS_ORIGINS ?? process.env.NEXT_PUBLIC_SITE_URL);
 

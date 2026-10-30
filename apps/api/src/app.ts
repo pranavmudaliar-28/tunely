@@ -50,6 +50,8 @@ export function buildApp(deps: Deps) {
     max: deps.rateLimitPerMin ?? 120,
     timeWindow: '1 minute',
     redis: deps.redis,
+    // In a Redis outage, go without limits rather than fail every request.
+    skipOnError: true,
     nameSpace: 'rl:',
     // The IP only ever exists as a hash inside a key that expires after the window.
     keyGenerator: (req) => createHash('sha256').update(req.ip).digest('base64url').slice(0, 22),

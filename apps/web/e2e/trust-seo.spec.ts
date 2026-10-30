@@ -70,6 +70,24 @@ test('home does not download the video player library until a channel is in reac
   await expect.poll(() => hlsLoaded.length).toBeGreaterThan(0);
 });
 
+test('lower category rails load as the viewer scrolls, with their links already in the HTML', async ({
+  page,
+  request,
+}) => {
+  await page.goto('/');
+  const lazy = page.locator('[data-lazy-rail]');
+  await expect.poll(() => lazy.count()).toBeGreaterThan(3);
+  const title = (await lazy.first().getAttribute('aria-label'))!;
+  // Crawlers still get the heading and the link to the category page.
+  const html = await (await request.get('/')).text();
+  expect(html).toContain(title);
+  expect(html).toMatch(/href="\/category\/[^"]+"/);
+  // Nothing is fetched until it's near; scrolling there fills it in.
+  await lazy.first().scrollIntoViewIfNeeded();
+  const rail = page.locator('section', { has: page.getByRole('heading', { name: title, exact: true }) });
+  await expect(rail.locator('a[href^="/watch/"]').first()).toBeVisible();
+});
+
 test('home features the top Indian news channels', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Top Indian news channels' })).toBeVisible();

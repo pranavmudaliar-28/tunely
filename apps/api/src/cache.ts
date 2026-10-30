@@ -1,6 +1,14 @@
 import { API_DATA_VERSION } from '@tunely/shared';
 import type { FastifyReply } from 'fastify';
-import type { Redis } from 'ioredis';
+import type { Redis, RedisOptions } from 'ioredis';
+
+// No offline queue: in a Redis outage, commands must fail at once so requests fall through to Postgres.
+// family: 0 lets ioredis use IPv6 too (Railway's private network is IPv6-only).
+export const REDIS_OPTIONS: RedisOptions = {
+  maxRetriesPerRequest: 1,
+  enableOfflineQueue: false,
+  family: 0,
+};
 
 export const CACHE_TTL_S = 300;
 

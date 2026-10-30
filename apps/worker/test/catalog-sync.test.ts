@@ -1,7 +1,7 @@
 import { createDb, schema } from '@tunely/db';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { prepareCatalog, runCatalogSync } from '../src/jobs/catalog-sync';
+import { prepareCatalog, runCatalogSync, type RawCatalog } from '../src/jobs/catalog-sync';
 import { fixtureCatalog } from './fixtures/catalog';
 
 describe('prepareCatalog', () => {
@@ -69,5 +69,51 @@ describe.skipIf(!url)('runCatalogSync (database)', () => {
     expect(counts.removed_channels).toBe(1);
     const streams = await db.select().from(schema.streams);
     expect(streams.map((s) => s.channelId)).toEqual(['DDNews.in']);
+  });
+
+  test('a takedown survives the channel leaving iptv-org and coming back', async () => {
+    await reset();
+    await runCatalogSync(db, fixtureCatalog());
+    await db
+      .update(schema.channelCuration)
+      .set({ status: 'removed' })
+      .where(eq(schema.channelCuration.channelId, 'DDNews.in'));
+
+    const gone = fixtureCatalog();
+    gone.channels = (gone.channels as { id: string }[]).filter((c) => c.id !== 'DDNews.in');
+    await runCatalogSync(db, gone);
+    await runCatalogSync(db, fixtureCatalog());
+
+    const [dd] = await db
+      .select()
+      .from(schema.channelCuration)
+      .where(eq(schema.channelCuration.channelId, 'DDNews.in'));
+    expect(dd?.status).toBe('removed');
+  });
+
+  test.each<[string, (raw: RawCatalog) => void]>([
+    ['channels.json is not a list', (raw) => (raw.channels = {})],
+    ['streams.json is empty', (raw) => (raw.streams = [])],
+    [
+      'a blocklist field was renamed',
+      (raw) => {
+        raw.blocklist = (raw.blocklist as { channel: string }[]).map(({ channel }) => ({
+          channel_id: channel,
+        }));
+      },
+    ],
+  ])('refuses the sync and changes nothing when %s', async (_name, breakIt) => {
+    await reset();
+    await runCatalogSync(db, fixtureCatalog());
+    const raw = fixtureCatalog();
+    breakIt(raw);
+
+    await expect(runCatalogSync(db, raw)).rejects.toThrow(/refusing to sync/);
+
+    expect(await db.$count(schema.channels)).toBe(2);
+    expect(await db.$count(schema.streams)).toBe(2);
+    expect(await db.$count(schema.blocklist)).toBe(1);
+    const runs = await db.select().from(schema.syncRuns).orderBy(schema.syncRuns.id);
+    expect(runs.map((r) => r.status)).toEqual(['ok', 'failed']);
   });
 });

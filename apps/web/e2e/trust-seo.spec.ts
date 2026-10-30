@@ -55,6 +55,21 @@ test('the app page explains installing and is linked from the footer', async ({ 
   expect(types).toEqual(expect.arrayContaining(['WebApplication', 'BreadcrumbList']));
 });
 
+test('home does not download the video player library until a channel is in reach', async ({ page }) => {
+  const hlsLoaded: string[] = [];
+  page.on('response', async (res) => {
+    if (res.request().resourceType() !== 'script') return;
+    const body = await res.text().catch(() => '');
+    if (body.includes('fragLoadingMaxRetry')) hlsLoaded.push(res.url()); // a string only hls.js contains
+  });
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  expect(hlsLoaded).toEqual([]);
+  // Heading for a channel starts the download, so playback still starts fast.
+  await page.getByRole('link', { name: 'Watch live' }).hover();
+  await expect.poll(() => hlsLoaded.length).toBeGreaterThan(0);
+});
+
 test('home features the top Indian news channels', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Top Indian news channels' })).toBeVisible();

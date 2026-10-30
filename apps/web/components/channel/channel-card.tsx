@@ -3,6 +3,7 @@
 import type { ChannelSummary } from '@tunely/shared';
 import Link from 'next/link';
 import { channelMeta } from '@/lib/format';
+import { preloadHls } from '@/lib/player/attach';
 import { usePlayerStore } from '@/lib/player/store';
 import { cn } from '@/lib/utils';
 import { ChannelLogo, LiveBadge, QualityChip } from './channel-logo';
@@ -32,6 +33,10 @@ export function ChannelCard({ channel, lineup, meta, variant = 'rail', eager }: 
       <Link
         href={`/watch/${encodeURIComponent(channel.id)}`}
         onClick={() => setLineup(lineup)}
+        // Start downloading the video player once someone heads for a channel, not on every page load.
+        onPointerEnter={preloadHls}
+        onFocus={preloadHls}
+        onTouchStart={preloadHls}
         className="text-text flex flex-col gap-2.5 rounded-[10px] no-underline"
       >
         <ChannelLogo

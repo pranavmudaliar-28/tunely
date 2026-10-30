@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from 'react';
 import { sendPlaybackReport } from '@/lib/api-client';
-import { attachStream, preloadHls, type PlaybackError } from '@/lib/player/attach';
+import { attachStream, type PlaybackError } from '@/lib/player/attach';
 import { initialPlayerState, playerReducer } from '@/lib/player/state';
 import { neighbour, usePlayerStore } from '@/lib/player/store';
 import { sessionId } from '@/lib/session';
@@ -31,9 +31,6 @@ const LOAD_TIMEOUT_MS = 10_000;
 /** Controls fade out after this long without mouse, touch or keyboard input while playing. */
 const IDLE_MS = 3000;
 const noopSubscribe = () => () => {};
-
-// Begin fetching hls.js as soon as this module loads in the browser, in parallel with hydration.
-if (typeof window !== 'undefined') void preloadHls();
 
 interface Level {
   index: number;

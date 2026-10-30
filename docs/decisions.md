@@ -78,3 +78,8 @@ Choices made while building, newest last.
   - **Facet page titles** read "{Country/Language} Live TV Channels List: Watch Free Online". Descriptions carry the live count and the top languages, categories or countries, from the same `/v1/facets` request the page already makes, so Next dedupes it.
   - **The home page features the national Indian news brands** in a curated "Top Indian news channels" rail. They stream free on their own sites.
   - **`/v1/channels?ids=`** fetches a curated set in one request: server-side renders share the API's per-IP rate limit, so 12 detail calls per home render was too many.
+- **Home page speed (30 Oct 2026).** Lighthouse showed LCP of 9–12 s on mobile.
+  - **Hero text no longer animates in or remounts per slide.** It started at opacity 0 and each rotation created a new LCP candidate. The block now stays mounted and updates in place, and the desktop logo keeps its crossfade.
+  - **hls.js is no longer preloaded at module load.** `GlobalPlayer` is in the root layout, so that downloaded 179 KB on every page. It now preloads on intent (pointer, focus or touch on a channel card or "Watch live"); direct watch-page visits still load it through `attachStream`.
+  - **Carousel dots** have a 24 px minimum width for tap targets.
+  - **Logo resizing with wsrv.nl was tested and rejected.** It fails on every i.imgur.com logo (imgur returns 429 to it, and each failure takes 0.5–2 s), and 69% of live channels' logos are on imgur. imgur's own thumbnail suffixes return JPEG, which loses transparency. Vercel's image optimizer has a monthly free limit that about 5,000 logos would likely exceed. So logos stay as they are until there's a resizer that can reach imgur.

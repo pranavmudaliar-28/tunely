@@ -4,6 +4,7 @@ import type { ChannelSummary } from '@tunely/shared';
 import Link from 'next/link';
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { ChevronLeft, ChevronRight, PauseIcon, PlayIcon } from '@/components/ui/icons';
+import { preloadHls } from '@/lib/player/attach';
 import { usePlayerStore } from '@/lib/player/store';
 import { cn } from '@/lib/utils';
 import { ChannelLogo, LiveBadge } from './channel-logo';
@@ -82,13 +83,14 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
         ))}
       </div>
 
+      {/* Stable block, updated in place: no entrance animation and no remount per slide, so the server-rendered
+          text paints at once and rotations don't create new largest-contentful-paint candidates. */}
       <div
-        key={channel.id}
         role="group"
         aria-roledescription="slide"
         aria-label={`${index + 1} of ${count}: ${channel.name}`}
         aria-live={paused ? 'polite' : 'off'}
-        className="animate-in fade-in slide-in-from-bottom-2 relative flex h-full max-w-[680px] flex-col justify-end gap-[18px] px-4 pb-20 duration-500 motion-reduce:animate-none sm:px-14 sm:pb-24"
+        className="relative flex h-full max-w-[680px] flex-col justify-end gap-[18px] px-4 pb-20 sm:px-14 sm:pb-24"
       >
         <div className="flex flex-wrap items-center gap-2.5">
           <span className="bg-live flex items-center gap-1.5 rounded-[6px] px-2.5 py-[5px] text-xs font-extrabold tracking-[0.08em] text-[#0B0D12]">
@@ -115,6 +117,9 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
           <Link
             href={`/watch/${encodeURIComponent(channel.id)}`}
             onClick={() => setLineup(slides.map((s) => s.channel))}
+            onPointerEnter={preloadHls}
+            onFocus={preloadHls}
+            onTouchStart={preloadHls}
             className="bg-text text-bg flex h-[52px] items-center gap-2.5 rounded-[8px] px-7 text-[17px] font-bold no-underline"
           >
             <PlayIcon size={20} />
@@ -142,7 +147,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
                 onClick={() => show(i)}
                 aria-label={`Show ${s.label.toLowerCase()}: ${s.channel.name}`}
                 aria-current={i === index}
-                className="group/dot flex h-10 items-center px-1"
+                className="group/dot flex h-10 min-w-6 items-center justify-center px-1"
               >
                 <span
                   className={cn(

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import { ADSENSE_CLIENT } from '@/lib/ads';
 import {
   Inter,
@@ -70,6 +71,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <AppShell>{children}</AppShell>
         </Providers>
+        <SpeedInsights />
         {ADSENSE_CLIENT && (
           <Script
             id="adsense"

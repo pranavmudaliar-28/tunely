@@ -1,10 +1,22 @@
-import type { Channel } from '@tunely/shared';
+import type { Channel, FacetCount } from '@tunely/shared';
+import type { Metadata } from 'next';
 import { countryName } from './format';
 import { SITE_NAME, SITE_URL } from './site';
 
 const list = (items: string[]) => new Intl.ListFormat('en', { type: 'conjunction' }).format(items);
 
 type Names = Record<string, string>;
+
+/** Country, category and language pages with fewer live channels than this stay out of search: they'd be thin. */
+export const INDEX_MIN_LIVE = 10;
+
+export const isIndexableFacet = (live: FacetCount[], id: string) =>
+  (live.find((f) => f.id === id)?.count ?? 0) >= INDEX_MIN_LIVE;
+
+/** robots for a facet page. If live counts can't load, stay indexable rather than hide every page for 5 minutes. */
+export function facetRobots(live: FacetCount[] | undefined, id: string): Metadata['robots'] {
+  return !live || isIndexableFacet(live, id) ? undefined : { index: false, follow: true };
+}
 
 /** A readable paragraph about a channel, built only from catalog data (so every watch page has real text). */
 export function channelAbout(c: Channel, languageNames: Names, categoryNames: Names): string {

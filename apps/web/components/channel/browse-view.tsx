@@ -4,7 +4,15 @@ import type { ChannelList, ChannelStatus, Facet, FacetCount, Facets } from '@tun
 import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useRouter } from 'next/navigation';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from 'react';
 import { CloseIcon } from '@/components/ui/icons';
 import { api, type ChannelFilters } from '@/lib/api-client';
 import { channelMeta } from '@/lib/format';
@@ -14,6 +22,9 @@ import { FacetCombobox, type ComboOption } from './facet-combobox';
 const PAGE = 48;
 const MIN_CARD = 200;
 const GAP = 16;
+/** Logos in roughly the first row load immediately: they are the page's largest image. */
+const EAGER_CARDS = 6;
+const noopSubscribe = () => () => {};
 
 export interface BrowseFacets {
   countries: Facet[];
@@ -378,6 +389,37 @@ function VirtualGrid({
     scrollMargin: offset,
   });
   useEffect(() => virtualizer.measure(), [rowHeight, virtualizer]);
+  // The virtualizer needs the window, so it renders nothing on the server. Until hydration, show the loaded
+  // page as a plain grid (same columns) so the HTML carries real links to every channel for crawlers.
+  const hydrated = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
+
+  if (!hydrated) {
+    return (
+      <div
+        ref={ref}
+        role="list"
+        aria-label="Channels"
+        className="grid"
+        style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${MIN_CARD}px, 1fr))`, gap: GAP }}
+      >
+        {items.map((c, i) => (
+          <div role="listitem" key={c.id}>
+            <ChannelCard
+              channel={c}
+              lineup={items}
+              variant="grid"
+              meta={channelMeta(c, languageNames)}
+              eager={i < EAGER_CARDS}
+            />
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -407,6 +449,7 @@ function VirtualGrid({
                       lineup={items}
                       variant="grid"
                       meta={channelMeta(c, languageNames)}
+                      eager={row.index === 0}
                     />
                   </div>
                 ))

@@ -1,4 +1,5 @@
 import type { ChannelSummary, Facet } from '@tunely/shared';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Fragment } from 'react';
 import { AdBanner } from '@/components/ads/ad-banner';
@@ -12,6 +13,13 @@ import { api } from '@/lib/api-client';
 import { channelMeta, countryName, nativeLanguageName, tint } from '@/lib/format';
 
 export const revalidate = 300;
+
+export const metadata: Metadata = {
+  title: { absolute: 'Tunely TV: Watch Free Live TV Channels Online' },
+  description:
+    'Thousands of free live TV channels from 160+ countries, playing right in your browser. News, sports, music, kids and more. No app, no sign-up.',
+  alternates: { canonical: '/' },
+};
 
 // India is the launch market; per-viewer country comes with user settings (Phase 5).
 const HOME_COUNTRY = 'IN';

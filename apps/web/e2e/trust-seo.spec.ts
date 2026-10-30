@@ -24,3 +24,18 @@ test('a live watch page has descriptive text and channel structured data', async
     .evaluateAll((els) => els.map((e) => JSON.parse(e.textContent ?? '{}')['@type']));
   expect(types).toEqual(expect.arrayContaining(['TelevisionChannel', 'BreadcrumbList']));
 });
+
+test('crawlers get links, one home h1 and the right robots rules in raw HTML', async ({ request }) => {
+  const html = async (path: string) => (await request.get(path)).text();
+  const home = await html('/');
+  expect(home.match(/<h1[\s>]/g)).toHaveLength(1);
+  expect(home).toMatch(/<link rel="canonical" href="https?:\/\/[^/"]+\/?"/); // the site root
+  // Listing pages carry real channel links before any JavaScript runs.
+  const country = await html('/country/in');
+  expect(new Set(country.match(/href="\/watch\/[^"]+"/g)).size).toBeGreaterThanOrEqual(10);
+  expect(country).not.toContain('noindex');
+  // Filtered directory URLs and thin facet pages are noindex.
+  expect(await html('/browse?q=zee')).toMatch(/<meta name="robots" content="noindex, follow"/);
+  expect(await html('/browse')).not.toContain('noindex');
+  expect(await html('/language/abk')).toMatch(/<meta name="robots" content="noindex, follow"/);
+});

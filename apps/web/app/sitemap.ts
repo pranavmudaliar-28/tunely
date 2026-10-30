@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { api } from '@/lib/api-client';
+import { isIndexableFacet } from '@/lib/seo';
 import { FOOTER_PAGES, SITE_URL } from '@/lib/site';
 
 export const revalidate = 3600;
@@ -19,23 +20,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
   ];
   try {
-    const [countries, categories, languages] = await Promise.all([
-      api.countries(),
-      api.categories(),
-      api.languages(),
-    ]);
+    // Only facet pages that are indexable (enough live channels); the rest render noindex.
+    const live = await api.facets({ status: 'live' });
+    const keep = (list: typeof live.countries) => list.filter((f) => isIndexableFacet(list, f.id));
     entries.push(
-      ...countries.map((c) => ({
+      ...keep(live.countries).map((c) => ({
         url: `${site}/country/${c.id.toLowerCase()}`,
         changeFrequency: 'daily' as const,
         priority: 0.7,
       })),
-      ...categories.map((c) => ({
+      ...keep(live.categories).map((c) => ({
         url: `${site}/category/${c.id}`,
         changeFrequency: 'daily' as const,
         priority: 0.7,
       })),
-      ...languages.map((l) => ({
+      ...keep(live.languages).map((l) => ({
         url: `${site}/language/${l.id}`,
         changeFrequency: 'daily' as const,
         priority: 0.6,

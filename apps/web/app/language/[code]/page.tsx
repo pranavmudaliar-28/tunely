@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { BrowsePage } from '@/components/channel/browse-page';
 import { api } from '@/lib/api-client';
 import { nativeLanguageName } from '@/lib/format';
+import { facetRobots } from '@/lib/seo';
 
 // Channel statuses change as streams are checked: refresh every 5 minutes.
 export const revalidate = 300;
@@ -19,7 +20,9 @@ async function language(params: Props['params']) {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { code, name } = await language(params);
+  const live = await api.facets({ status: 'live' }).catch(() => null);
   return {
+    robots: facetRobots(live?.languages, code),
     title: `Live TV in ${name}: watch free online`,
     description: `Watch free ${name} TV channels live in your browser on phone, computer or TV. No app, no sign-up.`,
     alternates: { canonical: `/language/${code}` },

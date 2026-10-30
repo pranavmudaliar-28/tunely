@@ -99,9 +99,10 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
             {slide.label}
           </span>
         </div>
-        <h1 className="text-5xl leading-none font-extrabold tracking-[-0.03em] sm:text-[72px]">
+        {/* h2: the rotating channel name isn't what the home page is about; the page's h1 is in HomeAbout. */}
+        <h2 className="text-5xl leading-none font-extrabold tracking-[-0.03em] sm:text-[72px]">
           {channel.name}
-        </h1>
+        </h2>
         <p className="text-text-soft flex flex-wrap gap-x-3.5 gap-y-1.5 text-[15px] font-medium">
           {slide.meta}
           {channel.quality && (

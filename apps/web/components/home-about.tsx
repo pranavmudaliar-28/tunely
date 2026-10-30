@@ -49,9 +49,9 @@ export function HomeAbout() {
           })),
         }}
       />
-      <h2 id="about-tunely" className="text-xl font-bold">
+      <h1 id="about-tunely" className="text-xl font-bold">
         Free live TV from around the world
-      </h2>
+      </h1>
       <p className="text-text-soft text-[15px] leading-relaxed">
         {SITE_NAME} brings together thousands of free, publicly available TV channels from over 200 countries:
         news, sports, movies, music, kids and more, in dozens of languages. Pick a channel and it plays

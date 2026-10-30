@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { Channel } from '@tunely/shared';
-import { browseIntro, channelAbout, jsonLdString } from './seo';
+import { browseIntro, channelAbout, facetRobots, INDEX_MIN_LIVE, jsonLdString } from './seo';
 
 const channel: Channel = {
   id: 'SunTV.in',
@@ -44,4 +44,15 @@ test('browseIntro', () => {
 
 test('jsonLdString cannot close the script tag', () => {
   expect(jsonLdString({ name: '</script><script>alert(1)</script>' })).not.toContain('</script>');
+});
+
+test('facet pages below the live-channel threshold stay out of search', () => {
+  const live = [
+    { id: 'IN', count: 661 },
+    { id: 'TV', count: INDEX_MIN_LIVE - 1 },
+  ];
+  expect(facetRobots(live, 'IN')).toBeUndefined();
+  expect(facetRobots(live, 'TV')).toEqual({ index: false, follow: true });
+  expect(facetRobots(live, 'XX')).toEqual({ index: false, follow: true }); // no live channels at all
+  expect(facetRobots(undefined, 'TV')).toBeUndefined(); // counts unavailable: don't hide everything
 });

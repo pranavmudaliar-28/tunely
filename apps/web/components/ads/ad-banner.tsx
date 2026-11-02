@@ -1,8 +1,9 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { ADSENSE_CLIENT, ADSTERRA, adSlot, adsterraDoc, type AdPlacement } from '@/lib/ads';
+import { useNearViewport } from '@/lib/use-near-viewport';
 import { cn } from '@/lib/utils';
 
 declare global {
@@ -29,7 +30,7 @@ export function AdBanner({ placement, className }: { placement: AdPlacement; cla
     }
   }, [slot, pathname]);
 
-  if ((!ADSENSE_CLIENT || !slot) && (ADSTERRA.wide || ADSTERRA.narrow)) {
+  if ((!ADSENSE_CLIENT || !slot) && (ADSTERRA.wide || ADSTERRA.medium || ADSTERRA.narrow)) {
     return <AdsterraBanner className={className} />;
   }
 
@@ -78,29 +79,19 @@ const AD_LOAD_AHEAD = '300px 0px';
 /** One Adsterra banner sized for the screen (only the visible size loads, so no hidden impressions). */
 function AdsterraBanner({ className }: { className?: string }) {
   const pathname = usePathname();
-  const box = useRef<HTMLElement>(null);
-  const [near, setNear] = useState(false);
+  const [box, near] = useNearViewport<HTMLElement>(AD_LOAD_AHEAD);
   const wide = useSyncExternalStore(
     subscribeWide,
     () => window.matchMedia(WIDE).matches,
     () => null,
   );
-  useEffect(() => {
-    const el = box.current;
-    if (!el) return;
-    const io = new IntersectionObserver(([entry]) => entry?.isIntersecting && setNear(true), {
-      rootMargin: AD_LOAD_AHEAD,
-    });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [wide]);
   if (wide === null) return null;
-  const pick =
-    wide && ADSTERRA.wide
-      ? { key: ADSTERRA.wide, w: 728, h: 90 }
-      : ADSTERRA.narrow
-        ? { key: ADSTERRA.narrow, w: 320, h: 50 }
-        : null;
+  const phone = ADSTERRA.medium
+    ? { key: ADSTERRA.medium, w: 300, h: 250 }
+    : ADSTERRA.narrow
+      ? { key: ADSTERRA.narrow, w: 320, h: 50 }
+      : null;
+  const pick = wide && ADSTERRA.wide ? { key: ADSTERRA.wide, w: 728, h: 90 } : phone;
   if (!pick) return null;
   return (
     <aside ref={box} aria-label="Advertisement" className={cn('flex flex-col items-center gap-1', className)}>
@@ -123,6 +114,33 @@ function AdsterraBanner({ className }: { className?: string }) {
           />
         )}
       </div>
+    </aside>
+  );
+}
+
+/**
+ * Adsterra Native Banner: a row of ad cards at the end of a page's content, never on or over video. Unlike the
+ * banners it fills a div in the page, so its script runs here; it loads only when near, and only without AdSense.
+ */
+export function AdNative({ className }: { className?: string }) {
+  const pathname = usePathname();
+  const [box, near] = useNearViewport<HTMLElement>(AD_LOAD_AHEAD);
+  const native = ADSENSE_CLIENT ? null : ADSTERRA.native;
+  useEffect(() => {
+    if (!near || !native) return;
+    const script = document.createElement('script');
+    script.async = true;
+    script.dataset.cfasync = 'false';
+    script.src = native.src;
+    document.body.appendChild(script);
+    return () => script.remove();
+  }, [near, native, pathname]);
+  if (!native) return null;
+  return (
+    <aside ref={box} aria-label="Advertisement" className={cn('flex flex-col gap-1', className)}>
+      <span className="text-text-muted text-[11px] tracking-wide uppercase">Advertisement</span>
+      {/* A fresh container per page: the script fills it once. */}
+      <div key={pathname} id={`container-${native.key}`} className="min-h-[160px] w-full" />
     </aside>
   );
 }

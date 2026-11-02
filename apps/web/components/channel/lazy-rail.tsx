@@ -1,8 +1,8 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api-client';
+import { useNearViewport } from '@/lib/use-near-viewport';
 import { ChannelRail, RAIL_ITEMS, RailHeader } from './channel-rail';
 
 /** Start loading this far before the rail scrolls into view, so it's ready when it arrives. */
@@ -22,17 +22,7 @@ export function LazyRail({
   title: string;
   languageNames: Record<string, string>;
 }) {
-  const ref = useRef<HTMLElement>(null);
-  const [near, setNear] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const io = new IntersectionObserver(([entry]) => entry?.isIntersecting && setNear(true), {
-      rootMargin: LOAD_AHEAD,
-    });
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
+  const [ref, near] = useNearViewport<HTMLElement>(LOAD_AHEAD);
   const { data } = useQuery({
     queryKey: ['rail', category],
     queryFn: () => api.channels({ category, status: 'live', sort: 'best', limit: RAIL_ITEMS }),

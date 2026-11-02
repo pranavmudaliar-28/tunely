@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { AdBanner } from '@/components/ads/ad-banner';
+import { AdBanner, AdNative } from '@/components/ads/ad-banner';
 import { api, type ChannelFilters } from '@/lib/api-client';
 import { browseIntro, liveTotal } from '@/lib/seo';
 import { BrowseView } from './browse-view';
@@ -55,6 +55,7 @@ export async function BrowsePage({
         facets={{ countries, categories, languages }}
         initialCounts={counts}
       />
+      {firstPage.items.length > 0 && <AdNative />}
       {firstPage.items.length > 0 && <AdBanner placement="browse" />}
     </div>
   );

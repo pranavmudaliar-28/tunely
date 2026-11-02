@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { adsterraDoc } from './ads';
+import { adsterraDoc, parseNativeSrc } from './ads';
 
 test('adsterraDoc builds the banner document from a key', () => {
   const doc = adsterraDoc('abc123def456', 728, 90, 'https://www.highperformanceformat.com/{key}/invoke.js');
@@ -10,4 +10,16 @@ test('adsterraDoc builds the banner document from a key', () => {
   expect(adsterraDoc('abc123def456', 320, 50, 'https://bauval.org/22/{key}')).toContain(
     'src="https://bauval.org/22/abc123def456"',
   );
+});
+
+test('parseNativeSrc takes the key from the script URL and rejects anything else', () => {
+  const key = '87ab6ab9f4762f03fc11b60df7bcd177';
+  expect(parseNativeSrc(` https://bauval.org/21/${key} `)).toEqual({
+    src: `https://bauval.org/21/${key}`,
+    key,
+  });
+  expect(parseNativeSrc(`https://pl1.example.com/${key}/invoke.js`)?.key).toBe(key);
+  expect(parseNativeSrc(undefined)).toBeNull();
+  expect(parseNativeSrc(`http://bauval.org/21/${key}`)).toBeNull();
+  expect(parseNativeSrc(`https://bauval.org/21/${key}"><script>`)).toBeNull();
 });

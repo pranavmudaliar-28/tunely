@@ -13,6 +13,9 @@ variable is set, and removing a variable switches that feature off again.
 3. In Vercel, set:
    - `NEXT_PUBLIC_ADSTERRA_KEY_728X90` = the 728×90 key
    - `NEXT_PUBLIC_ADSTERRA_KEY_320X50` = the 320×50 key
+   - `NEXT_PUBLIC_ADSTERRA_KEY_300X250` = the 300×250 key (optional; phones then use it instead of 320×50)
+   - `NEXT_PUBLIC_ADSTERRA_NATIVE_SRC` = the Native Banner's full script URL (optional; shows under channel lists
+     and at the end of live channel pages)
    - `NEXT_PUBLIC_ADSTERRA_SCRIPT` = the snippet's `<script src="…">` address with the key replaced by `{key}`,
      e.g. `https://bauval.org/22/{key}`
 4. Redeploy. Banners appear in the existing ad spots: the home page between rails, under browse grids, and

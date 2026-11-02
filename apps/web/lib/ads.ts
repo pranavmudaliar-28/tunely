@@ -24,12 +24,22 @@ const clean = (v: string | undefined, pattern: RegExp) =>
  */
 export const ADSTERRA = {
   wide: clean(process.env.NEXT_PUBLIC_ADSTERRA_KEY_728X90, /^[a-z0-9]{8,64}$/i),
+  /** Phones use this bigger unit instead of the 320×50 when it's set. */
+  medium: clean(process.env.NEXT_PUBLIC_ADSTERRA_KEY_300X250, /^[a-z0-9]{8,64}$/i),
   narrow: clean(process.env.NEXT_PUBLIC_ADSTERRA_KEY_320X50, /^[a-z0-9]{8,64}$/i),
   /** The banner code's script src with the key replaced by {key}; Adsterra uses different hosts per account. */
   script:
     clean(process.env.NEXT_PUBLIC_ADSTERRA_SCRIPT, /^https:\/\/[a-z0-9.-]+\/[\w./-]*\{key\}[\w./-]*$/i) ??
     'https://www.highperformanceformat.com/{key}/invoke.js',
+  native: parseNativeSrc(process.env.NEXT_PUBLIC_ADSTERRA_NATIVE_SRC),
 };
+
+/** Adsterra Native Banner script URL. Its key (the last path part) names the `container-{key}` div the ad fills. */
+export function parseNativeSrc(value: string | undefined) {
+  const src = value?.trim();
+  const key = src?.match(/^https:\/\/[a-z0-9.-]+\/(?:[\w.-]+\/)*([a-z0-9]{8,64})(?:\/invoke\.js)?$/i)?.[1];
+  return src && key ? { src, key } : null;
+}
 
 /** The HTML Adsterra's banner code expects, to run inside a sandboxed iframe. */
 export function adsterraDoc(key: string, width: number, height: number, script = ADSTERRA.script): string {

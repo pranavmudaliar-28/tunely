@@ -5,7 +5,7 @@ import { StatusDot } from '@/components/channel/channel-logo';
 import { FavoriteButton } from '@/components/channel/favorite-button';
 import { ShareButton } from '@/components/channel/share-button';
 import { SocialShare } from '@/components/channel/social-share';
-import { AdBanner } from '@/components/ads/ad-banner';
+import { AdBanner, AdNative } from '@/components/ads/ad-banner';
 import { JsonLd } from '@/components/json-ld';
 import { PlayerSlot } from '@/components/player/player-slot';
 import { api, ApiError } from '@/lib/api-client';
@@ -123,6 +123,7 @@ export default async function WatchPage({ params }: Props) {
         />
         <ChannelRail title="Similar channels" items={sameCategory} languageNames={languageNames} />
       </div>
+      {channel.status === 'live' && <AdNative className="mx-4 mb-14 sm:mx-14" />}
     </>
   );
 }

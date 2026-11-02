@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { adsterraDoc, parseNativeSrc } from './ads';
+import { adsterraDoc, pageAdsAllowed, parseNativeSrc } from './ads';
 
 test('adsterraDoc builds the banner document from a key', () => {
   const doc = adsterraDoc('abc123def456', 728, 90, 'https://www.highperformanceformat.com/{key}/invoke.js');
@@ -22,4 +22,11 @@ test('parseNativeSrc takes the key from the script URL and rejects anything else
   expect(parseNativeSrc(undefined)).toBeNull();
   expect(parseNativeSrc(`http://bauval.org/21/${key}`)).toBeNull();
   expect(parseNativeSrc(`https://bauval.org/21/${key}"><script>`)).toBeNull();
+});
+
+test('page-wide ads stay away from video', () => {
+  expect(pageAdsAllowed('/', false)).toBe(true);
+  expect(pageAdsAllowed('/browse', false)).toBe(true);
+  expect(pageAdsAllowed('/watch/AajTak.in', false)).toBe(false);
+  expect(pageAdsAllowed('/', true)).toBe(false); // the mini player is open
 });

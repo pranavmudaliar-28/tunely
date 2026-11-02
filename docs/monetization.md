@@ -21,8 +21,10 @@ variable is set, and removing a variable switches that feature off again.
 4. Redeploy. Banners appear in the existing ad spots: the home page between rails, under browse grids, and
    below the title on watch pages of live channels. They never appear on the video.
 
-**Only create Banner units.** Don't add Popunder, Social Bar or Direct Link codes: they annoy viewers, cost you
-visitors, and get the site flagged by browsers. Ask Adsterra support to block gambling/betting ads for your site: real-money betting ads are restricted in India.
+**Popunder and Social Bar (`NEXT_PUBLIC_ADSTERRA_POPUNDER_SRC`, `NEXT_PUBLIC_ADSTERRA_SOCIAL_BAR_SRC`)** are off until
+set. They load after a visitor's first interaction, never on channel pages or with the mini player, and opening a
+channel then reloads the page without them. Costs: channels open more slowly, visitors may leave or report the site,
+and browsers can flag it. Keep Adult ads off, and remove both before applying to AdSense. Don't add Direct Link codes. Ask Adsterra support to block gambling/betting ads for your site: real-money betting ads are restricted in India.
 
 If AdSense approves the site later, set `NEXT_PUBLIC_ADSENSE_CLIENT` and a slot id. AdSense then replaces
 Adsterra automatically.

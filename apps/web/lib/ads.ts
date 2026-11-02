@@ -18,6 +18,8 @@ export function adSlot(placement: AdPlacement): string | null {
 const clean = (v: string | undefined, pattern: RegExp) =>
   v?.trim() && pattern.test(v.trim()) ? v.trim() : null;
 
+const SCRIPT_URL = /^https:\/\/[a-z0-9.-]+\/[\w./-]+$/i;
+
 /**
  * Adsterra banners (Websites → Banner): used only while AdSense isn't configured. Keys go into an iframe document,
  * so they're validated to plain ids.
@@ -32,7 +34,14 @@ export const ADSTERRA = {
     clean(process.env.NEXT_PUBLIC_ADSTERRA_SCRIPT, /^https:\/\/[a-z0-9.-]+\/[\w./-]*\{key\}[\w./-]*$/i) ??
     'https://www.highperformanceformat.com/{key}/invoke.js',
   native: parseNativeSrc(process.env.NEXT_PUBLIC_ADSTERRA_NATIVE_SRC),
+  /** Full script URLs from their code. See PageAds for where these may run. */
+  popunder: clean(process.env.NEXT_PUBLIC_ADSTERRA_POPUNDER_SRC, SCRIPT_URL),
+  socialBar: clean(process.env.NEXT_PUBLIC_ADSTERRA_SOCIAL_BAR_SRC, SCRIPT_URL),
 };
+
+/** Popunder and Social Bar stay away from video: no channel pages, and not while the mini player is open. */
+export const pageAdsAllowed = (pathname: string, playing: boolean) =>
+  !playing && !pathname.startsWith('/watch/');
 
 /** Adsterra Native Banner script URL. Its key (the last path part) names the `container-{key}` div the ad fills. */
 export function parseNativeSrc(value: string | undefined) {

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { GridIcon, HeartIcon, HomeIcon, LogoMark, TvIcon } from '@/components/ui/icons';
 import { NavLink } from './nav-link';
+import { PageAds } from '@/components/ads/page-ads';
 import { GlobalPlayer } from '@/components/player/global-player';
 import { SearchCommand } from '@/components/search/search-command';
 import { InstallButton } from './install-button';
@@ -88,6 +89,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
       <SearchCommand />
       <GlobalPlayer />
+      <PageAds />
     </div>
   );
 }

@@ -38,9 +38,9 @@ services:
       - key: CORS_ORIGINS
         sync: false # https://<your-project>.vercel.app
       - key: TRUST_PROXY
-        # Set to the number of proxies Render puts in front of the API (count the addresses they add to one
-        # request's x-forwarded-for). 'true' lets clients spoof X-Forwarded-For and skip the rate limits.
-        value: 'true'
+        # Proxies Render puts in front of the API: 3 addresses in x-forwarded-for, measured 4 Nov 2026.
+        # 'true' would let clients spoof X-Forwarded-For and skip the rate limits.
+        value: '3'
       # Pace the stream checker so Neon's free database can sleep between batches.
       - key: HEALTH_BATCH_EVERY_MIN
         value: '30'

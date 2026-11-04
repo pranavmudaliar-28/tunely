@@ -75,6 +75,46 @@ test('favorites persist across reloads without an account', async ({ page }) => 
   await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
 });
 
+test('favorite folders group channels and survive a reload', async ({ page }) => {
+  await page.goto('/browse');
+  const adds = page.getByRole('button', { name: /^Add .* to favorites$/ });
+  const nameAt = async (i: number) =>
+    (await adds.nth(i).getAttribute('aria-label'))!.replace(/^Add (.*) to favorites$/, '$1');
+  const first = await nameAt(0);
+  const second = await nameAt(1);
+  await page.getByRole('button', { name: `Add ${first} to favorites` }).click();
+  await page.getByRole('button', { name: `Add ${second} to favorites` }).click();
+  // In-app navigation, as a viewer would: a hard reload right after a click can cut off its storage write.
+  await page.getByRole('link', { name: 'Favorites' }).first().click();
+
+  const folders = page.getByRole('toolbar', { name: 'Favorite folders' });
+  await folders.getByRole('button', { name: '+ New folder' }).click();
+  await page.getByRole('textbox', { name: 'Folder name' }).fill('News');
+  await page.keyboard.press('Enter');
+  await expect(folders.getByRole('button', { name: 'News (0)' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(folders.getByRole('button', { name: 'News (0)' })).toBeFocused();
+
+  await folders.getByRole('button', { name: 'All (2)' }).click();
+  await page.getByRole('button', { name: `Add to folder, ${first}` }).click();
+  await page
+    .getByRole('group', { name: `Folders for ${first}` })
+    .getByRole('checkbox', { name: 'News' })
+    .check();
+  await expect(page.getByRole('button', { name: `In 1 folder, ${first}` })).toBeVisible();
+
+  for (const reload of [false, true]) {
+    if (reload) await page.reload();
+    await folders.getByRole('button', { name: 'News (1)' }).click();
+    await expect(page.getByText(first, { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(second, { exact: true })).toHaveCount(0);
+  }
+
+  page.once('dialog', (d) => void d.accept());
+  await page.getByRole('button', { name: 'Delete folder' }).click();
+  await expect(folders.getByRole('button', { name: 'All (2)' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByText(second, { exact: true }).first()).toBeVisible();
+});
+
 test('browse search box and filters always agree with the results', async ({ page }) => {
   await page.goto('/browse');
   const box = page.locator('#b-q');

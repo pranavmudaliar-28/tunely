@@ -37,7 +37,7 @@ Do the steps in order: the website build calls the live API.
    | `REPORT_HASH_SECRET` | a generated secret                                  | –                            |
    | `INTERNAL_API_KEY`   | a generated secret, same value on the web server    | –                            |
    | `CORS_ORIGINS`       | `https://yourdomain.com,https://www.yourdomain.com` | –                            |
-   | `TRUST_PROXY`        | `true`                                              | –                            |
+   | `TRUST_PROXY`        | proxy hop count, e.g. `1` (see `.env.example`)      | –                            |
 
 5. **Deploy.** The API runs database migrations before it goes live (`preDeployCommand`) and must pass `/v1/health`.
    On its first start the worker sees an empty catalog and imports iptv-org (~1 min). Stream health checks run

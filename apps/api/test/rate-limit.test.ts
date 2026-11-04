@@ -50,6 +50,23 @@ test('with no key configured, sending the header gives no bypass', async () => {
   await app.close();
 });
 
+test('behind one trusted proxy, a client-written X-Forwarded-For does not buy a fresh limit', async () => {
+  await redis.flushdb();
+  const { app } = testApp({ rateLimitPerMin: 2, trustProxy: 1 });
+  // The client writes the left part; our proxy (the socket) appends the address it saw.
+  const get = (spoof: string) =>
+    app.inject({
+      method: 'GET',
+      url: '/v1/docs/json',
+      remoteAddress: '10.0.0.2',
+      headers: { 'x-forwarded-for': `${spoof}, 198.51.100.7` },
+    });
+  expect((await get('1.1.1.1')).statusCode).toBe(200);
+  expect((await get('1.1.1.2')).statusCode).toBe(200);
+  expect((await get('1.1.1.3')).statusCode).toBe(429);
+  await app.close();
+});
+
 test('the global limit applies to public GETs and skips /v1/health', async () => {
   await redis.flushdb();
   const { app } = testApp({ rateLimitPerMin: 3 });

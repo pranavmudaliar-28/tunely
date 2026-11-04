@@ -24,7 +24,8 @@ const app = buildApp({
   adminToken: process.env.ADMIN_TOKEN,
   reportHashSecret: env('REPORT_HASH_SECRET'),
   corsOrigins,
-  trustProxy: process.env.TRUST_PROXY === 'true',
+  // A hop count ("1") reads the address our proxy added; "true" also trusts what the client wrote.
+  trustProxy: Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY === 'true',
   internalApiKey: process.env.INTERNAL_API_KEY?.trim() || undefined,
 });
 app.addHook('onClose', async () => {

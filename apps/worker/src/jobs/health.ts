@@ -85,7 +85,13 @@ export async function recordCheck(db: Db, streamId: string, r: CheckResult) {
     });
 }
 
-/** Recompute scores from the last 12 checks and the last 24 h of player reports. All streams when ids is omitted. */
+/** What makes a stream count toward a live channel in public_channels. */
+const isLive = (score: number, webPlayable: boolean) => webPlayable && score >= 50;
+
+/**
+ * Recompute scores from the last 12 checks and the last 24 h of player reports. All streams when ids is omitted.
+ * `changed` counts streams that started or stopped counting as live, i.e. when public_channels needs a refresh.
+ */
 export async function rescore(db: Db, ids?: string[]) {
   if (ids && ids.length === 0) return { scored: 0, changed: 0 };
   const filter = ids
@@ -93,11 +99,13 @@ export async function rescore(db: Db, ids?: string[]) {
     : sql``;
   const rows = await db.execute<{
     stream_id: string;
+    score: number;
+    web_playable: boolean;
     checks: { ok: boolean; latencyMs: number | null }[];
     reports_ok: number;
     reports_error: number;
   }>(sql`
-    select h.stream_id,
+    select h.stream_id, h.score, h.web_playable,
       coalesce((select json_agg(json_build_object('ok', c.ok, 'latencyMs', c.latency_ms) order by c.checked_at desc)
                 from (select ok, latency_ms, checked_at from stream_checks
                       where stream_id = h.stream_id and checked_at > now() - make_interval(days => ${config.checksRetentionDays})
@@ -106,26 +114,30 @@ export async function rescore(db: Db, ids?: string[]) {
       (select count(*) from playback_reports p where p.stream_id = h.stream_id and p.result = 'error' and p.error_type is distinct from 'unsupported_codec' and p.created_at > now() - interval '24 hours')::int as reports_error
     from stream_health h ${filter}`);
 
-  const scored = rows.rows.map((r) => ({
-    id: r.stream_id,
-    score: computeScore({ checks: r.checks, reportsOk: r.reports_ok, reportsError: r.reports_error }),
-    // A browser playing it proves what web_playable stands for (HTTPS + CORS + no special headers).
-    web: confirmedByPlayers(r.reports_ok, r.reports_error),
-  }));
   let changed = 0;
+  const scored = rows.rows.map((r) => {
+    const score = computeScore({ checks: r.checks, reportsOk: r.reports_ok, reportsError: r.reports_error });
+    // A browser playing it proves what web_playable stands for (HTTPS + CORS + no special headers).
+    const web = confirmedByPlayers(r.reports_ok, r.reports_error);
+    if (isLive(r.score, r.web_playable) !== isLive(score, r.web_playable || web)) changed++;
+    return { id: r.stream_id, score, web };
+  });
   for (let i = 0; i < scored.length; i += 2000) {
     const chunk = JSON.stringify(scored.slice(i, i + 2000));
-    const res = await db.execute(sql`
+    await db.execute(sql`
       update stream_health h set score = v.score, web_playable = h.web_playable or v.web, updated_at = now()
       from jsonb_to_recordset(${chunk}::jsonb) as v(id uuid, score int, web boolean)
       where h.stream_id = v.id and (h.score is distinct from v.score or (v.web and not h.web_playable))`);
-    changed += res.rowCount ?? 0;
   }
   return { scored: scored.length, changed };
 }
 
-/** Keep config.checksRetentionDays of checks: delete older rows and drop monthly partitions that are entirely older. */
-export async function pruneChecks(db: Db) {
+/**
+ * Keep config.checksRetentionDays of checks (delete older rows, drop monthly partitions that are entirely older)
+ * and 2 days of playback reports: nothing reads reports older than 24 h.
+ */
+export async function pruneHistory(db: Db) {
+  await db.execute(sql`delete from playback_reports where created_at < now() - interval '2 days'`);
   await db.execute(
     sql`delete from stream_checks where checked_at < now() - make_interval(days => ${config.checksRetentionDays})`,
   );

@@ -52,7 +52,7 @@ services:
       ADMIN_TOKEN: ${ADMIN_TOKEN:?set ADMIN_TOKEN}
       REPORT_HASH_SECRET: ${REPORT_HASH_SECRET:?set REPORT_HASH_SECRET}
       CORS_ORIGINS: https://${DOMAIN}
-      TRUST_PROXY: 'true' # behind Caddy
+      TRUST_PROXY: '1' # one proxy hop: Caddy
     depends_on:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }

@@ -27,7 +27,8 @@ export interface Deps {
   adminToken: string | undefined;
   reportHashSecret: string;
   corsOrigins?: string[];
-  trustProxy?: boolean;
+  /** Number of proxy hops in front of the API (true trusts all, which lets clients spoof their IP). */
+  trustProxy?: boolean | number;
   /** Global per-client request budget per minute. */
   rateLimitPerMin?: number;
   /** Requests with this value in `x-internal-key` skip the rate limit: our own web server, see index.ts. */
@@ -36,7 +37,12 @@ export interface Deps {
 
 export function buildApp(deps: Deps) {
   const app = Fastify({
-    trustProxy: deps.trustProxy ?? false,
+    // Fastify ignores a bare hop count (it can't vouch for the peer), so pass the rule as a function. Safe here
+    // because every deploy reaches the API only through its proxy.
+    trustProxy:
+      typeof deps.trustProxy === 'number'
+        ? (_address: string, hop: number) => hop < (deps.trustProxy as number)
+        : (deps.trustProxy ?? false),
     logger: {
       level: process.env.LOG_LEVEL ?? 'info',
       redact: ['req.headers.authorization'],
@@ -56,8 +62,9 @@ export function buildApp(deps: Deps) {
     // In a Redis outage, go without limits rather than fail every request.
     skipOnError: true,
     nameSpace: 'rl:',
-    // The IP only ever exists as a hash inside a key that expires after the window.
-    keyGenerator: (req) => createHash('sha256').update(req.ip).digest('base64url').slice(0, 22),
+    // The IP only ever exists as a salted hash inside a key that expires after the window.
+    keyGenerator: (req) =>
+      createHash('sha256').update(`${deps.reportHashSecret}:${req.ip}`).digest('base64url').slice(0, 22),
     // Uptime pingers (cron-job.org, UptimeRobot) must never be rate limited. Nor must our own web server: every
     // server render comes from a few Vercel IPs, so a crawl would otherwise look like one abusive client.
     allowList: (req) => {

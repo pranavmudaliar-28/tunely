@@ -6,7 +6,7 @@ import { pino } from 'pino';
 import { config } from './config';
 import { dbFromEnv } from './db';
 import { runCatalogSync } from './jobs/catalog-sync';
-import { pruneChecks, rescore, runHealthBatch } from './jobs/health';
+import { pruneHistory, rescore, runHealthBatch } from './jobs/health';
 import { flushReports } from './jobs/reports';
 import { createRedis } from './redis';
 
@@ -81,7 +81,7 @@ const handlers: Record<string, Processor> = {
     return { inserted, changed };
   },
   [JOB.healthScore]: async () => {
-    await pruneChecks(db);
+    await pruneHistory(db);
     const { scored: rescored } = await rescore(db);
     await refreshPublicChannels(db);
     return { rescored };

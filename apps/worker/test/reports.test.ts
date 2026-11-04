@@ -1,4 +1,4 @@
-import { createDb, schema } from '@tunely/db';
+import { createDb, schema, type Db } from '@tunely/db';
 import { REPORTS_BUFFER } from '@tunely/shared';
 import { sql } from 'drizzle-orm';
 import { Redis } from 'ioredis';
@@ -48,5 +48,19 @@ describe.skipIf(!url)('flushReports', () => {
       ['error', 'offline', 900],
       ['ok', null, 900],
     ]);
+  });
+
+  test('a failed insert puts the batch back in order', async () => {
+    await redis.del(REPORTS_BUFFER);
+    const entries = ['{"n":1}', '{"n":2}', '{"n":3}'];
+    await redis.rpush(REPORTS_BUFFER, ...entries);
+    const down = {
+      execute: async () => {
+        throw new Error('database down');
+      },
+    } as unknown as Db;
+    await expect(flushReports(down, redis)).rejects.toThrow('database down');
+    expect(await redis.lrange(REPORTS_BUFFER, 0, -1)).toEqual(entries);
+    await redis.del(REPORTS_BUFFER);
   });
 });

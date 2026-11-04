@@ -1,9 +1,10 @@
 import { createDb, refreshPublicChannels, schema } from '@tunely/db';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, type SQL } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
+import { config } from '../src/config';
 import type { CheckResult } from '../src/health/check-stream';
 import { runCatalogSync } from '../src/jobs/catalog-sync';
-import { rescore, runHealthBatch } from '../src/jobs/health';
+import { pruneHistory, rescore, runHealthBatch } from '../src/jobs/health';
 import { fixtureCatalog } from './fixtures/catalog';
 
 const good: CheckResult = {
@@ -149,5 +150,45 @@ describe.skipIf(!url)('health jobs (database)', () => {
     await db.insert(schema.playbackReports).values([play('b')]);
     expect((await rescore(db, [dw!.id])).changed).toBe(1);
     expect(await liveIds()).toEqual(['DWNews.de']);
+    // A score that moves but stays live changes nothing public_channels shows: no refresh needed.
+    const health = eq(schema.streamHealth.streamId, dw!.id);
+    await db.update(schema.streamHealth).set({ score: 70 }).where(health);
+    expect((await rescore(db, [dw!.id])).changed).toBe(0);
+    const [h] = await db.select().from(schema.streamHealth).where(health);
+    expect(h!.score).toBe(60);
+  });
+
+  test('pruneHistory drops only old check partitions and old reports', async () => {
+    const partitions = async () =>
+      (
+        await db.execute<{ name: string }>(
+          sql`select relname as name from pg_class where relname ~ '^stream_checks_[0-9]{6}$' order by 1`,
+        )
+      ).rows.map((r) => r.name);
+    // The month holding the retention cutoff still has rows to keep; the one two months before it doesn't.
+    const cutoff = sql`now() - make_interval(days => ${config.checksRetentionDays + 1})`;
+    const name = (ts: SQL) => sql`to_char(${ts}, '"stream_checks_"YYYYMM')`;
+    const [p] = (
+      await db.execute<{ edge: string; old: string }>(
+        sql`select ${name(cutoff)} as edge, ${name(sql`${cutoff} - interval '2 months'`)} as old`,
+      )
+    ).rows;
+    await db.execute(sql`truncate stream_checks, playback_reports`);
+    await db.execute(
+      sql`select ensure_stream_checks_partition(${cutoff}), ensure_stream_checks_partition(${cutoff} - interval '2 months')`,
+    );
+    expect(await partitions()).toEqual(expect.arrayContaining([p!.edge, p!.old]));
+
+    const [dd] = await db.select({ id: schema.streams.id }).from(schema.streams).limit(1);
+    const report = { streamId: dd!.id, platform: 'web', result: 'ok' as const, anonSessionHash: 'p' };
+    await db
+      .insert(schema.playbackReports)
+      .values([report, { ...report, createdAt: new Date(Date.now() - 3 * 24 * 3600 * 1000) }]);
+
+    await pruneHistory(db);
+    const left = await partitions();
+    expect(left).not.toContain(p!.old);
+    expect(left).toContain(p!.edge);
+    expect(await db.$count(schema.playbackReports)).toBe(1);
   });
 });

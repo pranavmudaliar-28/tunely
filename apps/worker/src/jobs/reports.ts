@@ -23,14 +23,21 @@ export async function flushReports(db: Db, redis: Redis): Promise<{ inserted: nu
         return [];
       }
     });
-    const res = await db.execute<{ stream_id: string }>(sql`
-      insert into playback_reports (stream_id, platform, result, error_type, ttff_ms, anon_session_hash, created_at)
-      select v."streamId", v.platform, v.result, v."errorType", v."ttffMs", v."anonSessionHash", coalesce(v.at, now())
-      from jsonb_to_recordset(${JSON.stringify(rows)}::jsonb) as v(
-        "streamId" uuid, platform text, result text, "errorType" text, "ttffMs" int, "anonSessionHash" text, at timestamptz)
-      where v.result in ('ok', 'error') and v."anonSessionHash" is not null
-        and exists (select 1 from streams s where s.id = v."streamId")
-      returning stream_id`);
+    let res;
+    try {
+      res = await db.execute<{ stream_id: string }>(sql`
+        insert into playback_reports (stream_id, platform, result, error_type, ttff_ms, anon_session_hash, created_at)
+        select v."streamId", v.platform, v.result, v."errorType", v."ttffMs", v."anonSessionHash", coalesce(v.at, now())
+        from jsonb_to_recordset(${JSON.stringify(rows)}::jsonb) as v(
+          "streamId" uuid, platform text, result text, "errorType" text, "ttffMs" int, "anonSessionHash" text, at timestamptz)
+        where v.result in ('ok', 'error') and v."anonSessionHash" is not null
+          and exists (select 1 from streams s where s.id = v."streamId")
+        returning stream_id`);
+    } catch (err) {
+      // Database down or waking up: put the batch back at the head, in order, so the next flush retries it.
+      await redis.lpush(REPORTS_BUFFER, ...raw.reverse());
+      throw err;
+    }
     inserted += res.rowCount ?? 0;
     for (const r of res.rows) streamIds.add(r.stream_id);
     if (raw.length < BATCH) break;

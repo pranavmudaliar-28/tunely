@@ -47,7 +47,16 @@ export function buildApp(deps: Deps) {
       level: process.env.LOG_LEVEL ?? 'info',
       redact: ['req.headers.authorization'],
       // No IPs or user agents in logs.
-      serializers: { req: (req) => ({ method: req.method, url: req.url }) },
+      // shortcut: temporary, `xff` counts the proxies in front of us (no addresses); remove once TRUST_PROXY is set.
+      serializers: {
+        req: (req) => ({
+          method: req.method,
+          url: req.url,
+          xff: String(req.headers['x-forwarded-for'] ?? '')
+            .split(',')
+            .filter(Boolean).length,
+        }),
+      },
     },
   }).withTypeProvider<ZodTypeProvider>();
   app.setValidatorCompiler(validatorCompiler);

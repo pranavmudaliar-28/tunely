@@ -34,6 +34,7 @@ export function ChannelCard({ channel, lineup, meta, variant = 'rail', eager }: 
         href={`/watch/${encodeURIComponent(channel.id)}`}
         onClick={() => setLineup(lineup)}
         // Start downloading the video player once someone heads for a channel, not on every page load.
+        data-nav
         onPointerEnter={preloadHls}
         onFocus={preloadHls}
         onTouchStart={preloadHls}

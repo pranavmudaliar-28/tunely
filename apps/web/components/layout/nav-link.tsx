@@ -18,6 +18,7 @@ export function NavLink({
   return (
     <Link
       href={href}
+      data-nav
       aria-current={active ? 'page' : undefined}
       className={cn(
         'flex min-h-11 w-16 flex-col items-center justify-center gap-1 rounded-[10px] py-2 text-[11px] font-medium min-[720px]:w-[72px]',

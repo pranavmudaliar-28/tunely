@@ -8,8 +8,9 @@ import { SocialShare } from '@/components/channel/social-share';
 import { AdBanner, AdNative } from '@/components/ads/ad-banner';
 import { JsonLd } from '@/components/json-ld';
 import { PlayerSlot } from '@/components/player/player-slot';
+import { ShortcutsButton } from '@/components/player/shortcuts';
 import { api, ApiError } from '@/lib/api-client';
-import { channelMeta, countryName } from '@/lib/format';
+import { channelMeta, countryName, reliabilityText } from '@/lib/format';
 import { breadcrumbs, channelAbout, channelJsonLd } from '@/lib/seo';
 import { mailto, SITE_URL } from '@/lib/site';
 
@@ -60,6 +61,7 @@ export default async function WatchPage({ params }: Props) {
   const categoryNames = Object.fromEntries(categories.map((c) => [c.id, c.name]));
   const country = countryName(channel.country);
   const meta = channelMeta(channel, languageNames);
+  const reliability = reliabilityText(channel.reliability, channel.status);
   const best = channel.streams.find((s) => s.webPlayable);
   const sameCountry = related.items.filter((c) => c.country === channel.country);
   const sameCategory = related.items.filter((c) => c.country !== channel.country);
@@ -90,6 +92,7 @@ export default async function WatchPage({ params }: Props) {
               <StatusDot status="offline" label={STATUS_TEXT[channel.status]} />
             )}
           </p>
+          {reliability && <p className="text-text-muted text-[13px]">{reliability}</p>}
           <p className="text-text-soft max-w-[720px] text-[15px] leading-relaxed">
             {channelAbout(channel, languageNames, categoryNames)}
           </p>
@@ -117,6 +120,7 @@ export default async function WatchPage({ params }: Props) {
             >
               Report a problem
             </a>
+            <ShortcutsButton />
           </p>
         </div>
         <div className="flex flex-wrap gap-2.5">

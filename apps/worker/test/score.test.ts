@@ -41,3 +41,16 @@ test('viewers confirming playback lift a stream our checker cannot reach', () =>
   expect(computeScore({ checks: failing, reportsOk: 2, reportsError: 5 })).toBeLessThan(50); // mostly failing for viewers
   expect(computeScore({ checks: [], reportsOk: 3, reportsError: 1 })).toBe(60); // never checked
 });
+
+test("viewers' start time replaces the manifest speed once there are enough plays", () => {
+  const checks = [ok(200), ok(200)];
+  expect(computeScore({ checks, reportsOk: 0, reportsError: 0, ttffMedianMs: null })).toBe(100);
+  // Fast manifest, but players take 8 s to show a picture: speed points drop.
+  expect(computeScore({ checks, reportsOk: 0, reportsError: 0, ttffMedianMs: 8000 })).toBe(86);
+  // Slow manifest, but players start in 2 s: full speed points.
+  expect(computeScore({ checks: [ok(5000)], reportsOk: 0, reportsError: 0, ttffMedianMs: 2000 })).toBe(100);
+  // A failed latest check still gets no speed points.
+  expect(
+    computeScore({ checks: [fail, ok()], reportsOk: 0, reportsError: 0, ttffMedianMs: 1000 }),
+  ).toBeLessThan(50);
+});

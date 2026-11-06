@@ -10,6 +10,16 @@ export interface Prefs {
   languages?: string[];
   /** The first-visit question was answered or skipped. */
   asked?: boolean;
+  /** Cap video at 480p. Unset = automatic: on when the browser reports mobile data or Save-Data. */
+  dataSaver?: 'on' | 'off';
+}
+
+/** Height cap while data saver is on. */
+export const DATA_SAVER_HEIGHT = 480;
+
+export function dataSaverOn(setting: Prefs['dataSaver'], connection?: { saveData?: boolean; type?: string }) {
+  if (setting) return setting === 'on';
+  return connection?.saveData === true || connection?.type === 'cellular';
 }
 
 export const PREFS_KEY = 'tunely.prefs';
@@ -25,6 +35,7 @@ export function cleanPrefs(value: unknown): Prefs {
     if (langs.length) prefs.languages = [...new Set(langs)].slice(0, MAX_LANGUAGES);
   }
   if (v.asked === true) prefs.asked = true;
+  if (v.dataSaver === 'on' || v.dataSaver === 'off') prefs.dataSaver = v.dataSaver;
   return prefs;
 }
 
@@ -67,6 +78,9 @@ function subscribe(listener: () => void) {
     window.removeEventListener('storage', onStorage);
   };
 }
+
+/** Current prefs outside React (e.g. when the player picks a quality). */
+export const getPrefs = (): Prefs => (cache ??= read());
 
 /** Null on the server and during hydration, so cached pages render the same for everyone. */
 export function usePrefs(): Prefs | null {

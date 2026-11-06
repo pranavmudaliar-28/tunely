@@ -104,6 +104,7 @@ export async function rescore(db: Db, ids?: string[]) {
     checks: { ok: boolean; latencyMs: number | null }[];
     reports_ok: number;
     reports_error: number;
+    ttff_median: number | null;
   }>(sql`
     select h.stream_id, h.score, h.web_playable,
       coalesce((select json_agg(json_build_object('ok', c.ok, 'latencyMs', c.latency_ms) order by c.checked_at desc)
@@ -111,12 +112,19 @@ export async function rescore(db: Db, ids?: string[]) {
                       where stream_id = h.stream_id and checked_at > now() - make_interval(days => ${config.checksRetentionDays})
                       order by checked_at desc limit 12) c), '[]') as checks,
       (select count(distinct p.anon_session_hash) from playback_reports p where p.stream_id = h.stream_id and p.result = 'ok' and p.created_at > now() - interval '24 hours')::int as reports_ok,
-      (select count(*) from playback_reports p where p.stream_id = h.stream_id and p.result = 'error' and p.error_type is distinct from 'unsupported_codec' and p.created_at > now() - interval '24 hours')::int as reports_error
+      (select count(*) from playback_reports p where p.stream_id = h.stream_id and p.result = 'error' and p.error_type is distinct from 'unsupported_codec' and p.created_at > now() - interval '24 hours')::int as reports_error,
+      (select case when count(p.ttff_ms) >= 5 then (percentile_cont(0.5) within group (order by p.ttff_ms))::int end
+        from playback_reports p where p.stream_id = h.stream_id and p.result = 'ok' and p.created_at > now() - interval '24 hours') as ttff_median
     from stream_health h ${filter}`);
 
   let changed = 0;
   const scored = rows.rows.map((r) => {
-    const score = computeScore({ checks: r.checks, reportsOk: r.reports_ok, reportsError: r.reports_error });
+    const score = computeScore({
+      checks: r.checks,
+      reportsOk: r.reports_ok,
+      reportsError: r.reports_error,
+      ttffMedianMs: r.ttff_median,
+    });
     // A browser playing it proves what web_playable stands for (HTTPS + CORS + no special headers).
     const web = confirmedByPlayers(r.reports_ok, r.reports_error);
     if (isLive(r.score, r.web_playable) !== isLive(score, r.web_playable || web)) changed++;

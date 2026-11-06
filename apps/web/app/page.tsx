@@ -9,6 +9,7 @@ import { HeroCarousel, type HeroSlide } from '@/components/channel/hero-carousel
 import { HeroWall } from '@/components/channel/hero-wall';
 import { LazyRail } from '@/components/channel/lazy-rail';
 import { LocalRail } from '@/components/channel/local-rail';
+import { ForYouRail } from '@/components/channel/for-you';
 import { YourChannels } from '@/components/channel/your-channels';
 import { WelcomeCard, YourLanguageRails } from '@/components/channel/your-languages';
 import { HomeAbout } from '@/components/home-about';
@@ -145,6 +146,7 @@ async function load() {
     worldNews: worldNews.items,
     featuredNews,
     railCategories,
+    categoryNames: Object.fromEntries(categories.map((c) => [c.id, c.name])),
     eagerRails,
     languages,
     heroPicks,
@@ -152,8 +154,17 @@ async function load() {
 }
 
 export default async function HomePage() {
-  const { trending, local, worldNews, featuredNews, railCategories, eagerRails, languages, heroPicks } =
-    await load();
+  const {
+    trending,
+    local,
+    worldNews,
+    featuredNews,
+    railCategories,
+    categoryNames,
+    eagerRails,
+    languages,
+    heroPicks,
+  } = await load();
   const languageNames = Object.fromEntries(languages.map((l) => [l.id, l.name]));
   // One slide per category: its best live channel (score, then resolution), most watched first.
   const seen = new Set<string>();
@@ -212,6 +223,7 @@ export default async function HomePage() {
         <ContinueWatching />
         <YourChannels languageNames={languageNames} />
         <YourLanguageRails languageNames={languageNames} />
+        <ForYouRail languageNames={languageNames} categoryNames={categoryNames} />
         <LocalRail featuredCountry={HOME_COUNTRY} languageNames={languageNames} />
         <ChannelRail
           title={`Popular in ${countryName(HOME_COUNTRY)}`}
@@ -237,6 +249,7 @@ export default async function HomePage() {
               {languages.slice(0, 10).map((l) => (
                 <div role="listitem" key={l.id} className="shrink-0 snap-start">
                   <Link
+                    data-nav
                     href={`/language/${l.id}`}
                     className="text-text bg-surface-raised hover:bg-border flex h-24 w-[168px] flex-col justify-between rounded-[10px] px-4 py-3 no-underline transition-colors"
                   >

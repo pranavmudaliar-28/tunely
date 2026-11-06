@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { act } from 'react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { __resetPrefs, cleanPrefs, PREFS_KEY, savePrefs, usePrefs } from './prefs';
+import { __resetPrefs, cleanPrefs, dataSaverOn, PREFS_KEY, savePrefs, usePrefs } from './prefs';
 
 beforeEach(() => {
   localStorage.clear();
@@ -50,4 +50,15 @@ test('blocked storage still applies the choice for this page view', () => {
   expect(result.current).toEqual({});
   act(() => savePrefs({ country: 'FR' }));
   expect(result.current).toEqual({ country: 'FR' });
+});
+
+test('data saver: an explicit choice wins; automatic follows Save-Data and mobile data', () => {
+  expect(dataSaverOn('on', { type: 'wifi' })).toBe(true);
+  expect(dataSaverOn('off', { saveData: true })).toBe(false);
+  expect(dataSaverOn(undefined, { type: 'cellular' })).toBe(true);
+  expect(dataSaverOn(undefined, { saveData: true })).toBe(true);
+  expect(dataSaverOn(undefined, { type: 'wifi' })).toBe(false);
+  expect(dataSaverOn(undefined, undefined)).toBe(false); // browsers that don't say
+  expect(cleanPrefs({ dataSaver: 'on' })).toEqual({ dataSaver: 'on' });
+  expect(cleanPrefs({ dataSaver: 'maybe' })).toEqual({});
 });

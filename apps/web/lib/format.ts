@@ -91,6 +91,35 @@ export function tint(id: string): string {
   return TINTS[h % TINTS.length]!;
 }
 
+/** "just now", "12 min ago", "3 h ago", "yesterday", "4 days ago". */
+export function ago(ts: number, now = Date.now()): string {
+  const m = Math.max(0, Math.round((now - ts) / 60_000));
+  if (m < 2) return 'just now';
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} h ago`;
+  const d = Math.round(h / 24);
+  return d === 1 ? 'yesterday' : `${d} days ago`;
+}
+
+/** One plain line on how dependable a channel has been, from our checks; null when there is nothing useful to say. */
+export function reliabilityText(
+  rel: { checks: number; ok: number; lastOkAt: string | null } | null,
+  status: string,
+  now = Date.now(),
+): string | null {
+  if (!rel) return null;
+  const last = rel.lastOkAt ? Date.parse(rel.lastOkAt) : null;
+  if (status === 'live') {
+    if (!rel.checks) return null;
+    // Live without a good check: viewers' plays proved it (our server is blocked or out of region).
+    if (!rel.ok) return "Plays for viewers, though our server can't reach it";
+    return `Worked in ${rel.ok} of ${rel.checks} checks this week${last ? ` · last verified ${ago(last, now)}` : ''}`;
+  }
+  if (status !== 'offline') return null;
+  return last ? `Last worked ${ago(last, now)}` : null;
+}
+
 /** "Under a minute", "45 min", "2 h 10 min". */
 export function watchTime(seconds: number): string {
   const m = Math.floor(seconds / 60);

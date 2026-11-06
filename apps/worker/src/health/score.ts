@@ -4,6 +4,8 @@ export interface ScoreInput {
   /** Distinct viewer sessions that played it OK in the last 24 h. */
   reportsOk: number;
   reportsError: number;
+  /** Median time to first frame of viewers' successful plays in 24 h; null with fewer than MIN_REPORTS. */
+  ttffMedianMs?: number | null;
 }
 
 const DECAY = 0.8;
@@ -22,9 +24,13 @@ export function confirmedByPlayers(reportsOk: number, reportsError: number): boo
   return reportsOk >= PLAYER_CONFIRM_SESSIONS && reportsOk / (reportsOk + reportsError) >= 0.5;
 }
 
-/** 0–100. 80 points for recent check success (newer checks weigh more), 20 for a fast manifest,
- *  then blended 60/40 with real player reports once there are enough of them. */
-export function computeScore({ checks, reportsOk, reportsError }: ScoreInput): number {
+/** Speed points from how fast viewers' players actually started it, which is what zapping feels like. */
+const startSpeed = (ms: number) => (ms < 3000 ? 1 : ms < 6000 ? 0.6 : 0.3);
+
+/** 0–100. 80 points for recent check success (newer checks weigh more), 20 for speed (viewers' start time once
+ *  there are enough plays, else our manifest fetch), then blended 60/40 with real player reports once there are
+ *  enough of them. */
+export function computeScore({ checks, reportsOk, reportsError, ttffMedianMs }: ScoreInput): number {
   const recent = checks.slice(0, 12);
   const players = confirmedByPlayers(reportsOk, reportsError);
   if (!recent.length) return players ? PLAYER_CONFIRMED_SCORE : 0;
@@ -38,7 +44,15 @@ export function computeScore({ checks, reportsOk, reportsError }: ScoreInput): n
   });
   const latest = recent[0]!;
   const latency = latest.latencyMs ?? Infinity;
-  const speed = !latest.ok ? 0 : latency < 1500 ? 1 : latency < 4000 ? 0.6 : 0.3;
+  const speed = !latest.ok
+    ? 0
+    : ttffMedianMs != null
+      ? startSpeed(ttffMedianMs)
+      : latency < 1500
+        ? 1
+        : latency < 4000
+          ? 0.6
+          : 0.3;
   let score = 80 * (weighted / total) + 20 * speed;
 
   const reports = reportsOk + reportsError;

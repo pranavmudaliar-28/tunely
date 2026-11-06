@@ -19,6 +19,7 @@ export function ContinueWatching() {
         {items.map(({ channel, lastWatchedAt }) => (
           <div role="listitem" key={channel.id} className="w-[260px] shrink-0 snap-start sm:w-[300px]">
             <Link
+              data-nav
               href={`/watch/${encodeURIComponent(channel.id)}`}
               onClick={() => setLineup(items.map((h) => h.channel))}
               className="text-text flex flex-col gap-2.5 no-underline"

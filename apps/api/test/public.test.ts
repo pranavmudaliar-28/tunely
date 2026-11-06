@@ -190,6 +190,29 @@ describe.skipIf(!testDbUrl)('public API', () => {
     expect((await get('/v1/channels/Nope.xx')).status).toBe(404);
   });
 
+  test('channel detail says how often its first stream worked this week', async () => {
+    expect((await get('/v1/channels/DWNews.de')).body.reliability).toEqual({
+      checks: 0,
+      ok: 0,
+      lastOkAt: null,
+    });
+    await db.execute(sql`insert into stream_checks (stream_id, checked_at, ok, is_https) values
+      (${STREAM.dd}, now() - interval '1 day', true, true),
+      (${STREAM.dd}, now() - interval '2 days', false, true),
+      (${STREAM.dd}, now() - interval '3 days', true, true),
+      (${STREAM.dd}, now() - interval '10 days', false, true)`); // outside the week
+    await db.execute(
+      sql`update stream_health set last_ok_at = '2026-11-05T10:00:00Z' where stream_id = ${STREAM.dd}`,
+    );
+    try {
+      const { body } = await get('/v1/channels/DDNews.in');
+      expect(body.reliability).toEqual({ checks: 3, ok: 2, lastOkAt: '2026-11-05T10:00:00.000Z' });
+    } finally {
+      await db.execute(sql`delete from stream_checks`);
+      await db.execute(sql`update stream_health set last_ok_at = null where stream_id = ${STREAM.dd}`);
+    }
+  });
+
   test('a closed channel links its listed successor', async () => {
     expect((await get('/v1/channels/DDNews.in')).body.replacedBy).toBeNull();
     await db.execute(

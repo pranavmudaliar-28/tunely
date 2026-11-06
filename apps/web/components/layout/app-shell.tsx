@@ -4,6 +4,7 @@ import { NavLink } from './nav-link';
 import { PageAds } from '@/components/ads/page-ads';
 import { GlobalPlayer } from '@/components/player/global-player';
 import { SearchButton, SearchCommand } from '@/components/search/search-command';
+import { SpatialNav } from './spatial-nav';
 import { InstallButton } from './install-button';
 import { ThemeToggle } from './theme-toggle';
 import { FOOTER_PAGES, SUPPORT_URL } from '@/lib/site';
@@ -94,6 +95,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </footer>
       </div>
       <SearchCommand />
+      <SpatialNav />
       <GlobalPlayer />
       <PageAds />
     </div>

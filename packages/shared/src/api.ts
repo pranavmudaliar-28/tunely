@@ -35,6 +35,11 @@ export const ChannelSchema = ChannelSummarySchema.extend({
   streams: z.array(StreamSchema),
   /** A closed channel's listed successor. Defaults to null so a newer web build can read an older API. */
   replacedBy: z.object({ id: z.string(), name: z.string() }).nullable().default(null),
+  /** Our checks of the stream the player tries first: last 7 days, and when it last worked (ISO time). */
+  reliability: z
+    .object({ checks: z.number().int(), ok: z.number().int(), lastOkAt: z.string().nullable() })
+    .nullable()
+    .default(null),
 });
 export type Channel = z.infer<typeof ChannelSchema>;
 

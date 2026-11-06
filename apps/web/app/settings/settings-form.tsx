@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { LanguagePicker } from '@/components/channel/your-languages';
-import { MAX_LANGUAGES, savePrefs, usePrefs } from '@/lib/prefs';
+import { DATA_SAVER_HEIGHT, MAX_LANGUAGES, savePrefs, usePrefs } from '@/lib/prefs';
 
 type Option = { id: string; name: string };
 
@@ -51,6 +51,37 @@ export function SettingsForm({ countries, languages }: { countries: Option[]; la
             </option>
           ))}
         </select>
+      </section>
+
+      <section aria-labelledby="s-saver" className="flex flex-col gap-3">
+        <div>
+          <h2 id="s-saver" className="text-lg font-semibold">
+            Data saver
+          </h2>
+          <p className="text-text-muted text-sm">
+            Keeps video at {DATA_SAVER_HEIGHT}p or lower, so a data pack lasts longer.
+          </p>
+        </div>
+        <div role="radiogroup" aria-labelledby="s-saver" className="flex flex-col gap-2 text-sm">
+          {(
+            [
+              [undefined, 'Automatic: on when your browser says you are on mobile data'],
+              ['on', 'Always on'],
+              ['off', 'Off'],
+            ] as const
+          ).map(([value, label]) => (
+            <label key={label} className="flex min-h-11 cursor-pointer items-center gap-3">
+              <input
+                type="radio"
+                name="data-saver"
+                checked={prefs.dataSaver === value}
+                onChange={() => savePrefs({ dataSaver: value })}
+                className="accent-accent size-4"
+              />
+              {label}
+            </label>
+          ))}
+        </div>
       </section>
 
       <section aria-labelledby="s-data" className="flex flex-col gap-2">

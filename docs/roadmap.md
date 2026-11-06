@@ -27,21 +27,28 @@ From the feature review of 6 Nov 2026. Each item builds on what Tunely already d
 | H3  | Languages and country: first-visit card, `/settings`, "Live in …" rows                |
 | H2  | Playback metrics without identifiers: visitor-age bucket, `daily_stats`, `pnpm stats` |
 
-## Phase 2: feels like TV (about 4–6 weeks)
+## Phase 2: feels like TV (done, 6 Nov 2026, except H7)
 
-| ID       | Feature                                                                                                | Size |
-| -------- | ------------------------------------------------------------------------------------------------------ | ---- |
-| H4 + Q9  | Channel list inside the player (G); last-channel recall (L); 1–9 jump to favorites; `?` shortcut sheet | M    |
-| H5       | Faster switching: prefetch neighbouring channels' playlists, rank streams by start time                | M    |
-| H6       | Phone gestures in fullscreen: swipe to change channel, double-tap ±10 s, fit/fill                      | M    |
-| H7       | Cast (Chromecast Web Sender) and AirPlay button                                                        | M    |
-| H8       | Captions and audio-language menu when the stream carries them                                          | L–M  |
-| H9       | Data saver: cap at 480p on mobile data; audio-only                                                     | L–M  |
-| H10      | Reliability line on watch pages ("online 97% of the last 7 days")                                      | L–M  |
-| H11      | TV mode and arrow-key navigation between cards and rails                                               | M    |
-| H12      | "For you" row built on the device from history                                                         | M    |
-| A1       | Smart search v1: "tamil kids", "hindi news" become filters (rules, no AI)                              | M    |
-| H1 spike | Measure programme-guide coverage for the top 200 live channels (1 week)                                | –    |
+| ID       | Feature                                                                                         |
+| -------- | ----------------------------------------------------------------------------------------------- |
+| H4 + Q9  | Channel list inside the player (G); last channel (L); 1–9 jump to favorites; `?` shortcut sheet |
+| H5       | Faster switching: neighbouring channels prefetched; viewers' start time in the score            |
+| H6       | Phone gestures in fullscreen: swipe to change channel, double-tap ±10 s, Fit/Fill               |
+| H8       | Captions and audio-language menus when the stream carries them                                  |
+| H9       | Data saver: Auto capped at 480p on mobile data or when chosen (audio-only not built)            |
+| H10      | Reliability line on watch pages ("Worked in 13 of 14 checks this week")                         |
+| H11      | Arrow keys move between cards, rails and the nav (a separate large-UI TV mode not built)        |
+| H12      | "For you" row built on the device from history                                                  |
+| A1       | Smart search v1: "tamil news", "kids", "sports uk" become filters (rules, no AI)                |
+| H1 spike | Guide coverage measured: see below                                                              |
+
+**Waiting for the owner:** H7, a Cast (Chromecast Web Sender) and AirPlay button. It loads Google's Cast script, which needs a CSP allowance in Phase 6.
+
+**Guide coverage (6 Nov 2026):**
+
+- 38% of our 4,429 live channels have a guide source in iptv-org; 62% of the top 200; India 65%, US 42%.
+- `i.mjh.nz` publishes ready XMLTV files and covers 42 of the top 200: start there, with no scraping.
+- Indian channels mostly need iptv-org's grabber on `tataplay.com`, which scrapes the site: the owner's call.
 
 ## Phase 3: knows what's on, everywhere (about 2–3 months)
 

@@ -67,9 +67,9 @@ Tests that touch Postgres use `TEST_DATABASE_URL` (`createdb tunely_test`, then 
 - `MANUAL=1 pnpm --filter @tunely/web e2e` plays 50 random web-playable streams (`/dev/stream-test`) and asserts at least 80% succeed.
 - `pnpm --filter @tunely/api bench` measures cached API latency.
 
-Keyboard: ↑/↓ channel up/down, F fullscreen, M mute, Space pause, Ctrl/⌘+K search (or the search button in the header on phones and in the left rail on desktop). Headset and lock-screen previous/next buttons change channel too.
+Keyboard and TV remote on the watch page: ↑/↓ channel up/down, G channel list, L last channel, 1–9 your favorites, ←/→ 10 s (when the stream allows), F fullscreen, M mute, Space pause, ? all shortcuts; Ctrl/⌘+K search anywhere (or the search button in the header on phones and in the left rail on desktop). Elsewhere the arrow keys move between channel cards, rails and the nav. Headset and lock-screen previous/next buttons change channel; on phones in fullscreen, swipe up/down changes channel and a double tap on either side skips 10 s.
 
-Pages in the browser only: `/history` (remove one channel or clear all) and `/settings` (up to 3 languages, country). The product roadmap is in [docs/roadmap.md](docs/roadmap.md).
+Pages in the browser only: `/history` (remove one channel or clear all) and `/settings` (up to 3 languages, country, data saver). The product roadmap is in [docs/roadmap.md](docs/roadmap.md).
 
 ## Earning (Adsterra, donations, affiliates)
 

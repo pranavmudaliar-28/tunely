@@ -1,6 +1,13 @@
 'use client';
 
-import type { ChannelList, ChannelStatus, Facet, FacetCount, Facets } from '@tunely/shared';
+import {
+  parseQuery,
+  type ChannelList,
+  type ChannelStatus,
+  type Facet,
+  type FacetCount,
+  type Facets,
+} from '@tunely/shared';
 import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useRouter } from 'next/navigation';
@@ -16,6 +23,7 @@ import {
 import { CloseIcon } from '@/components/ui/icons';
 import { api, type ChannelFilters } from '@/lib/api-client';
 import { channelMeta } from '@/lib/format';
+import { searchDictionary } from '@/lib/search-dictionary';
 import { mailto } from '@/lib/site';
 import { ChannelCard, ChannelCardSkeleton } from './channel-card';
 import { FacetCombobox, type ComboOption } from './facet-combobox';
@@ -90,7 +98,12 @@ export function BrowseView({
   const typingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // The filters the viewer last asked for; the next URL is built from these, never from lagging props.
   const intended = useRef<ChannelFilters>(filters);
+  // Only when the URL itself changes: our own navigate() updates ownHrefs before the URL, and resyncing then would put
+  // back the filters we are leaving (and the search-as-you-type timer would navigate there again).
+  const syncedHref = useRef(href);
   useEffect(() => {
+    if (href === syncedHref.current) return;
+    syncedHref.current = href;
     if (!ownHrefs.includes(href)) intended.current = filters;
   }, [href, filters, ownHrefs]);
 
@@ -177,6 +190,27 @@ export function BrowseView({
     return list.find((f) => f.id === id)?.name ?? id;
   };
   const active = (Object.keys(LABELS) as FilterKey[]).filter((k) => filters[k]);
+
+  // Smart search, offered rather than applied: "tamil news" suggests the Tamil + News filters, so the box never
+  // changes under the viewer's fingers while typing.
+  const dictionary = useMemo(() => searchDictionary(facets), [facets]);
+  const suggestion = useMemo(() => {
+    if (!filters.q) return null;
+    const p = parseQuery(filters.q, dictionary);
+    const fresh = (k: FilterKey) => (p[k] && p[k] !== filters[k] ? p[k] : undefined);
+    const picked = { category: fresh('category'), language: fresh('language'), country: fresh('country') };
+    if (!picked.category && !picked.language && !picked.country) return null;
+    const label = [
+      picked.language && facetName('language', picked.language),
+      picked.category && facetName('category', picked.category),
+      picked.country && `from ${facetName('country', picked.country)}`,
+    ]
+      .filter(Boolean)
+      .join(' ');
+    return { ...picked, rest: p.rest, label: `${label} channels${p.rest ? ` matching “${p.rest}”` : ''}` };
+    // facetName reads the same facets the dictionary is built from.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, dictionary]);
   const filterCount = active.length + (filters.status ? 1 : 0);
 
   return (
@@ -317,6 +351,26 @@ export function BrowseView({
             Clear all
           </button>
         </div>
+      )}
+
+      {suggestion && (
+        <button
+          type="button"
+          onClick={() => {
+            setTerm(suggestion.rest);
+            set({
+              q: suggestion.rest || undefined,
+              category: suggestion.category ?? filters.category,
+              language: suggestion.language ?? filters.language,
+              country: suggestion.country ?? filters.country,
+            });
+          }}
+          className="border-border bg-surface hover:border-text-muted/40 self-start rounded-full border px-4 py-2.5 text-left text-sm"
+        >
+          <span className="text-text-muted">Looking for </span>
+          <span className="font-semibold">{suggestion.label}</span>
+          <span className="text-text-muted">? Show them →</span>
+        </button>
       )}
 
       {items.length === 0 ? (

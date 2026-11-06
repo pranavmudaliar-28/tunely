@@ -25,6 +25,7 @@ const channel: Channel = {
   website: null,
   streams: [],
   replacedBy: null,
+  reliability: null,
 };
 
 describe('channelAbout', () => {

@@ -109,6 +109,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
           <Link
             href={`/watch/${encodeURIComponent(channel.id)}`}
             onClick={() => setLineup(slides.map((s) => s.channel))}
+            data-nav
             onPointerEnter={preloadHls}
             onFocus={preloadHls}
             onTouchStart={preloadHls}

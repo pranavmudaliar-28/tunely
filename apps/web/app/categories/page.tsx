@@ -31,6 +31,7 @@ function FacetGrid({
         {items.map((f) => (
           <li key={f.id}>
             <Link
+              data-nav
               href={href(f)}
               className="text-text bg-surface-raised hover:bg-border flex h-24 flex-col justify-between rounded-[10px] px-4 py-3 no-underline transition-colors"
             >

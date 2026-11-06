@@ -228,10 +228,32 @@ export const publicRoutes =
                 .where(eq(pc.id, nextId));
             }
           }
+          // How dependable the stream the player tries first has been (index on stream_id, checked_at).
+          let reliability: { checks: number; ok: number; lastOkAt: string | null } | null = null;
+          const first = streams[0];
+          if (first) {
+            const { rows } = await db.execute<{
+              checks: number;
+              ok: number;
+              last_ok_at: Date | string | null;
+            }>(sql`
+              select count(*)::int as checks, (count(*) filter (where c.ok))::int as ok,
+                (select h.last_ok_at from stream_health h where h.stream_id = ${first.id}) as last_ok_at
+              from stream_checks c
+              where c.stream_id = ${first.id} and c.checked_at > now() - interval '7 days'`);
+            const r = rows[0];
+            if (r)
+              reliability = {
+                checks: r.checks,
+                ok: r.ok,
+                lastOkAt: r.last_ok_at ? new Date(r.last_ok_at).toISOString() : null,
+              };
+          }
           return {
             ...toSummary(row),
             website: row.website,
             replacedBy,
+            reliability,
             streams: streams.map(({ height, score, webPlayable, nativePlayable, ...s }) => ({
               ...s,
               score: score ?? 0,

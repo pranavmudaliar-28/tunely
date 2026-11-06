@@ -8,10 +8,12 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from 'react';
 import { sendPlaybackReport } from '@/lib/api-client';
 import { attachStream, type PlaybackError } from '@/lib/player/attach';
+import { DOUBLE_TAP_MS, swipeDirection, tapSide } from '@/lib/player/gestures';
 import { initialPlayerState, playerReducer } from '@/lib/player/state';
-import { neighbour, preferredLevel, usePlayerStore } from '@/lib/player/store';
+import { capLevel, neighbour, preferredLevel, usePlayerStore } from '@/lib/player/store';
+import { DATA_SAVER_HEIGHT, dataSaverOn, getPrefs } from '@/lib/prefs';
 import { sessionId, visitorAge } from '@/lib/session';
-import { recordWatch } from '@/lib/storage/library';
+import { recordWatch, useLibrary } from '@/lib/storage/library';
 import { cn } from '@/lib/utils';
 import {
   ChevronDown,
@@ -19,13 +21,26 @@ import {
   ChevronUp,
   CloseIcon,
   FullscreenIcon,
+  ListIcon,
   PauseIcon,
   PipIcon,
   PlayIcon,
   VolumeIcon,
 } from '@/components/ui/icons';
+import { ChannelList } from './channel-list';
 import { PlayerOverlay } from './player-overlay';
+import { openShortcuts, ShortcutsDialog } from './shortcuts';
 import { LiveTimeline, SkipButton, useLiveWindow } from './timeline';
+import { showCaptions, useCaptions } from './tracks';
+
+/** The browser's connection hints (Chrome and Android only); absent elsewhere. */
+const connection = () =>
+  (navigator as Navigator & { connection?: { saveData?: boolean; type?: string } }).connection;
+
+interface AudioOption {
+  index: number;
+  label: string;
+}
 
 const LOAD_TIMEOUT_MS = 10_000;
 /** Controls fade out after this long without mouse, touch or keyboard input while playing. */
@@ -90,17 +105,29 @@ export function Player({
   const {
     muted,
     volume,
+    captions: rememberedCaptions,
+    previous,
     setMuted,
     setVolume,
     setQuality,
+    setCaptions,
     setLineup,
+    setPrevious,
     lineup: storedLineup,
   } = usePlayerStore();
+  const { favorites } = useLibrary();
   const [levels, setLevels] = useState<Level[]>([]);
   const [level, setLevel] = useState(-1);
+  const [saver, setSaver] = useState(false);
+  const [audio, setAudio] = useState<{ options: AudioOption[]; active: number }>({ options: [], active: -1 });
   const [needsTap, setNeedsTap] = useState(false);
   const [idle, setIdle] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
+  const [fill, setFill] = useState(false);
+  const fullscreen = useIsFullscreen(frameRef);
   const live = useLiveWindow(videoRef);
+  const captions = useCaptions(videoRef, rememberedCaptions);
+  const listButton = useRef<HTMLButtonElement>(null);
   // Lets tests (and TV remotes' first keypress) know the shortcuts are live.
   const hydrated = useSyncExternalStore(
     noopSubscribe,
@@ -118,16 +145,31 @@ export function Player({
     return [summary, ...fallbackLineup];
   }, [storedLineup, channel.id, summary, fallbackLineup]);
 
+  /** Open a channel; up/down then walks `list` (by default the current one, even the related-channels fallback). */
+  const open = useCallback(
+    (id: string, list: Pick<ChannelSummary, 'id' | 'name' | 'status'>[] = lineup) => {
+      setLineup(list);
+      router.push(`/watch/${encodeURIComponent(id)}`);
+    },
+    [lineup, router, setLineup],
+  );
   const go = useCallback(
     (step: 1 | -1) => {
       const id = neighbour(lineup, channel.id, step);
-      if (!id) return;
-      // Keep walking the same list on the next page, even if it was the related-channels fallback.
-      setLineup(lineup);
-      router.push(`/watch/${encodeURIComponent(id)}`);
+      if (id) open(id);
     },
-    [lineup, channel.id, router, setLineup],
+    [lineup, channel.id, open],
   );
+
+  // Faster switching: fetch the next and previous channels' pages while this one plays.
+  const playingNow = state.status === 'playing';
+  useEffect(() => {
+    if (!full || !playingNow) return;
+    for (const step of [1, -1] as const) {
+      const id = neighbour(lineup, channel.id, step);
+      if (id) router.prefetch(`/watch/${encodeURIComponent(id)}`);
+    }
+  }, [full, playingNow, lineup, channel.id, router]);
 
   // Lock screen, notification and headset buttons: channel name and logo; previous/next change channel.
   const canZap = lineup.length > 1;
@@ -156,14 +198,16 @@ export function Player({
   }, [channel.name, channel.logo, meta, canZap, go]);
 
   // New channel (the player stays mounted so fullscreen and picture-in-picture survive): reset.
-  const firstChannel = useRef(channel.id);
+  const lastChannel = useRef({ id: channel.id, name: channel.name });
   useEffect(() => {
-    if (firstChannel.current === channel.id) return;
-    firstChannel.current = channel.id;
+    if (lastChannel.current.id === channel.id) return;
+    setPrevious(lastChannel.current); // for "last channel" (L)
+    lastChannel.current = { id: channel.id, name: channel.name };
     setNeedsTap(false);
     setTrying(false);
+    setListOpen(false);
     dispatch({ type: 'channel', streamCount: verified.length });
-  }, [channel.id, verified.length]);
+  }, [channel.id, channel.name, verified.length, setPrevious]);
 
   const tryAnyway = useCallback(() => {
     setTrying(true);
@@ -222,12 +266,31 @@ export function Player({
               .filter((l) => l.height && !seen.has(l.height) && seen.add(l.height))
               .sort((a, b) => b.height - a.height);
             setLevels(list);
-            const pick = preferredLevel(list, usePlayerStore.getState().quality);
+            // Data saver caps Auto, and a remembered quality above the cap.
+            const saving = dataSaverOn(getPrefs().dataSaver, connection());
+            setSaver(saving);
+            if (saving && hls.levels.length > 1)
+              hls.autoLevelCapping = capLevel(hls.levels, DATA_SAVER_HEIGHT);
+            const quality = usePlayerStore.getState().quality;
+            const pick = preferredLevel(
+              list,
+              saving && quality ? Math.min(quality, DATA_SAVER_HEIGHT) : quality,
+            );
             if (pick !== -1) hls.currentLevel = pick;
           });
           hls.on('hlsLevelSwitched' as Events.LEVEL_SWITCHED, () =>
             setLevel(hls.autoLevelEnabled ? -1 : hls.currentLevel),
           );
+          const readAudio = () =>
+            setAudio({
+              options: hls.audioTracks.map((t, index) => ({
+                index,
+                label: t.name || t.lang || `Audio ${index + 1}`,
+              })),
+              active: hls.audioTrack,
+            });
+          hls.on('hlsAudioTracksUpdated' as Events.AUDIO_TRACKS_UPDATED, readAudio);
+          hls.on('hlsAudioTrackSwitched' as Events.AUDIO_TRACK_SWITCHED, readAudio);
         }
       },
     }).then((a) => {
@@ -251,6 +314,8 @@ export function Player({
       hlsRef.current = null;
       setLevels([]);
       setLevel(-1);
+      setSaver(false);
+      setAudio({ options: [], active: -1 });
     };
     // state.attempt forces a fresh attach on retry even when the stream is the same.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -325,9 +390,56 @@ export function Player({
     idleTimer.current = setTimeout(() => setIdle(true), IDLE_MS);
     return () => clearTimeout(idleTimer.current);
   }, [state.status]);
-  const controlsHidden = full && idle && state.status === 'playing';
+  const controlsHidden = full && idle && state.status === 'playing' && !listOpen;
 
-  // Shortcuts (watch page only): arrows = channel up/down, ←/→ = 10 s, F, M, Space/K.
+  const closeList = useCallback(() => {
+    setListOpen(false);
+    listButton.current?.focus();
+  }, []);
+  const lastOpened = useCallback(() => {
+    if (previous && previous.id !== channel.id) open(previous.id);
+  }, [previous, channel.id, open]);
+  const openFavorite = useCallback(
+    (n: number) => {
+      const fav = favorites[n];
+      if (fav && fav.id !== channel.id) open(fav.id, favorites);
+    },
+    [favorites, channel.id, open],
+  );
+
+  // Phones in fullscreen: swipe up/down to change channel, double-tap a side to skip 10 s.
+  const touch = useRef<{ x: number; y: number; t: number } | null>(null);
+  const lastTap = useRef<{ t: number; side: string } | null>(null);
+  const onTouchStart = (e: React.PointerEvent) => {
+    const onControl = (e.target as HTMLElement).closest('button, a, input, select, nav');
+    touch.current =
+      fullscreen && e.pointerType === 'touch' && !onControl
+        ? { x: e.clientX, y: e.clientY, t: e.timeStamp }
+        : null;
+  };
+  const onTouchEnd = (e: React.PointerEvent) => {
+    const start = touch.current;
+    touch.current = null;
+    if (!start || !frameRef.current) return;
+    const swipe = swipeDirection(e.clientX - start.x, e.clientY - start.y, e.timeStamp - start.t);
+    if (swipe) return go(swipe === 'up' ? 1 : -1);
+    const rect = frameRef.current.getBoundingClientRect();
+    const side = tapSide(e.clientX - rect.left, rect.width);
+    const prev = lastTap.current;
+    lastTap.current = { t: e.timeStamp, side };
+    if (
+      prev &&
+      prev.side === side &&
+      side !== 'center' &&
+      e.timeStamp - prev.t < DOUBLE_TAP_MS &&
+      live.seekable
+    ) {
+      lastTap.current = null;
+      seekBy(side === 'left' ? -10 : 10);
+    }
+  };
+
+  // Shortcuts (watch page only): arrows = channel up/down, ←/→ = 10 s, F, M, Space/K, G list, L last, 1–9, ?.
   useEffect(() => {
     if (!full) return;
     const onKey = (e: KeyboardEvent) => {
@@ -367,11 +479,31 @@ export function Player({
           if (e.key === ' ' && isButton) return; // Space activates the focused control instead.
           e.preventDefault();
           return togglePlay();
+        case 'g':
+        case 'G':
+          return setListOpen((o) => !o);
+        case 'l':
+        case 'L':
+          return lastOpened();
+        case '?':
+          return openShortcuts();
       }
+      if (/^[1-9]$/.test(e.key)) openFavorite(Number(e.key) - 1);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [full, go, toggleFullscreen, toggleMute, togglePlay, seekBy, live.seekable, wake]);
+  }, [
+    full,
+    go,
+    toggleFullscreen,
+    toggleMute,
+    togglePlay,
+    seekBy,
+    live.seekable,
+    wake,
+    lastOpened,
+    openFavorite,
+  ]);
 
   const playing = state.status === 'playing';
   const currentHeight = levels.find((l) => l.index === level)?.height;
@@ -391,17 +523,24 @@ export function Player({
       <div
         ref={frameRef}
         onPointerMove={wake}
-        onPointerDown={wake}
+        onPointerDown={(e) => {
+          wake();
+          onTouchStart(e);
+        }}
+        onPointerUp={onTouchEnd}
+        onPointerCancel={() => (touch.current = null)}
         onFocus={wake}
         className={cn(
           'relative aspect-video w-full overflow-hidden bg-black',
           controlsHidden && 'cursor-none',
+          // Fullscreen swipes are ours, not the browser's (no scroll or pull-to-refresh).
+          fullscreen && 'touch-none',
         )}
       >
         <video
           ref={videoRef}
           playsInline
-          className="absolute inset-0 size-full"
+          className={cn('absolute inset-0 size-full', fill && fullscreen && 'object-cover')}
           onPause={() => dispatch({ type: 'paused' })}
           onPlay={() => state.status === 'paused' && dispatch({ type: 'playing' })}
           onDoubleClick={full ? toggleFullscreen : undefined}
@@ -467,6 +606,19 @@ export function Player({
           successor={channel.replacedBy}
           compact={!full}
         />
+
+        {full && listOpen && (
+          <ChannelList
+            items={lineup}
+            currentId={channel.id}
+            onClose={closeList}
+            onPick={(id) => {
+              setListOpen(false);
+              if (id !== channel.id) open(id);
+            }}
+          />
+        )}
+        <SwipeHint show={fullscreen && lineup.length > 1} />
 
         {needsTap && playing && (
           <button
@@ -534,6 +686,17 @@ export function Player({
                 >
                   <ChevronDown />
                 </button>
+                <button
+                  ref={listButton}
+                  type="button"
+                  className={btn}
+                  onClick={() => setListOpen((o) => !o)}
+                  aria-label="Channel list"
+                  aria-expanded={listOpen}
+                  disabled={lineup.length < 2}
+                >
+                  <ListIcon />
+                </button>
               </>
             )}
             <button
@@ -570,6 +733,51 @@ export function Player({
               </>
             )}
             <span className="grow" />
+            {full && captions.options.length > 0 && (
+              <>
+                <label htmlFor="player-captions" className="sr-only">
+                  Captions
+                </label>
+                <select
+                  id="player-captions"
+                  value={captions.active}
+                  onChange={(e) => {
+                    const index = Number(e.target.value);
+                    if (videoRef.current) showCaptions(videoRef.current, index);
+                    setCaptions(captions.options.find((o) => o.index === index)?.key ?? null);
+                  }}
+                  className="h-10 max-w-[96px] rounded-[8px] bg-white/15 px-2 text-sm font-semibold text-[#F2F4F8] sm:max-w-[160px] [&>option]:text-black"
+                >
+                  <option value={-1}>CC off</option>
+                  {captions.options.map((o) => (
+                    <option key={o.index} value={o.index}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+            {full && audio.options.length > 1 && (
+              <>
+                <label htmlFor="player-audio" className="sr-only">
+                  Audio language
+                </label>
+                <select
+                  id="player-audio"
+                  value={audio.active}
+                  onChange={(e) => {
+                    if (hlsRef.current) hlsRef.current.audioTrack = Number(e.target.value);
+                  }}
+                  className="h-10 max-w-[96px] rounded-[8px] bg-white/15 px-2 text-sm font-semibold text-[#F2F4F8] sm:max-w-[160px] [&>option]:text-black"
+                >
+                  {audio.options.map((o) => (
+                    <option key={o.index} value={o.index}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
             {full && levels.length > 1 && (
               <>
                 <label htmlFor="player-quality" className="sr-only">
@@ -588,6 +796,7 @@ export function Player({
                 >
                   <option value={-1}>
                     Auto{level === -1 && currentHeight ? ` · ${currentHeight}p` : ''}
+                    {saver ? ' · data saver' : ''}
                   </option>
                   {levels.map((l) => (
                     <option key={l.index} value={l.index}>
@@ -605,6 +814,16 @@ export function Player({
             >
               <PipIcon size={full ? 22 : 20} />
             </button>
+            {fullscreen && (
+              <button
+                type="button"
+                className={cn(btn, 'w-auto px-3 text-sm font-semibold')}
+                onClick={() => setFill((f) => !f)}
+                aria-pressed={fill}
+              >
+                {fill ? 'Fit' : 'Fill'}
+              </button>
+            )}
             {full ? (
               <button type="button" className={btn} onClick={toggleFullscreen} aria-label="Fullscreen">
                 <FullscreenIcon />
@@ -628,6 +847,49 @@ export function Player({
             ? `${channel.name} is unavailable`
             : ''}
       </p>
+      {full && <ShortcutsDialog />}
     </section>
+  );
+}
+
+/** True while `ref` is the fullscreen element (not on iOS, which only fullscreens the <video> itself). */
+function useIsFullscreen(ref: React.RefObject<HTMLElement | null>) {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const update = () => setOn(document.fullscreenElement === ref.current && ref.current !== null);
+    document.addEventListener('fullscreenchange', update);
+    return () => document.removeEventListener('fullscreenchange', update);
+  }, [ref]);
+  return on;
+}
+
+const SWIPE_HINT_KEY = 'tunely.hint.swipe';
+
+/** Once per browser, the first time a touch screen goes fullscreen: says that swiping changes channel. */
+function SwipeHint({ show }: { show: boolean }) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (!show || !matchMedia('(pointer: coarse)').matches) return;
+    try {
+      if (localStorage.getItem(SWIPE_HINT_KEY)) return;
+      localStorage.setItem(SWIPE_HINT_KEY, '1');
+    } catch {
+      return; // can't remember it: don't nag every time
+    }
+    const on = setTimeout(() => setVisible(true), 0);
+    const off = setTimeout(() => setVisible(false), 4000);
+    return () => {
+      clearTimeout(on);
+      clearTimeout(off);
+    };
+  }, [show]);
+  if (!visible || !show) return null;
+  return (
+    <p
+      role="status"
+      className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/75 px-4 py-2.5 text-sm font-semibold text-[#F2F4F8]"
+    >
+      Swipe up or down to change channel
+    </p>
   );
 }

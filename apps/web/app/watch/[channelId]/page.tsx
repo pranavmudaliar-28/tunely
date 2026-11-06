@@ -9,6 +9,7 @@ import { AdBanner, AdNative } from '@/components/ads/ad-banner';
 import { JsonLd } from '@/components/json-ld';
 import { PlayerSlot } from '@/components/player/player-slot';
 import { ShortcutsButton } from '@/components/player/shortcuts';
+import { NowNext } from '@/components/channel/now-next';
 import { api, ApiError } from '@/lib/api-client';
 import { channelMeta, countryName, reliabilityText } from '@/lib/format';
 import { breadcrumbs, channelAbout, channelJsonLd } from '@/lib/seo';
@@ -93,6 +94,7 @@ export default async function WatchPage({ params }: Props) {
             )}
           </p>
           {reliability && <p className="text-text-muted text-[13px]">{reliability}</p>}
+          <NowNext schedule={channel.schedule} />
           <p className="text-text-soft max-w-[720px] text-[15px] leading-relaxed">
             {channelAbout(channel, languageNames, categoryNames)}
           </p>

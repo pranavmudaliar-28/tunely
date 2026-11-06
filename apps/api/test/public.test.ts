@@ -213,6 +213,22 @@ describe.skipIf(!testDbUrl)('public API', () => {
     }
   });
 
+  test('channel detail lists the programmes that have not ended, in order', async () => {
+    await db.execute(sql`insert into programmes (channel_id, start, stop, title, description) values
+      ('DDNews.in', now() - interval '2 hours', now() - interval '1 hour', 'Ended', null),
+      ('DDNews.in', now() + interval '30 minutes', now() + interval '90 minutes', 'Later', null),
+      ('DDNews.in', now() - interval '30 minutes', now() + interval '30 minutes', 'On now', 'Headlines.')`);
+    try {
+      const { body } = await get('/v1/channels/DDNews.in');
+      expect(body.schedule.map((p: { title: string }) => p.title)).toEqual(['On now', 'Later']);
+      expect(body.schedule[0]).toMatchObject({ description: 'Headlines.' });
+      expect(Date.parse(body.schedule[0].stop)).toBeGreaterThan(Date.now());
+      expect((await get('/v1/channels/DWNews.de')).body.schedule).toEqual([]);
+    } finally {
+      await db.execute(sql`delete from programmes`);
+    }
+  });
+
   test('a closed channel links its listed successor', async () => {
     expect((await get('/v1/channels/DDNews.in')).body.replacedBy).toBeNull();
     await db.execute(

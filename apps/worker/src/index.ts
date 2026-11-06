@@ -6,6 +6,7 @@ import { pino } from 'pino';
 import { config } from './config';
 import { dbFromEnv } from './db';
 import { runCatalogSync } from './jobs/catalog-sync';
+import { runGuide } from './jobs/guide';
 import { pruneHistory, rescore, runHealthBatch } from './jobs/health';
 import { flushReports } from './jobs/reports';
 import { rollupDailyStats } from './jobs/stats';
@@ -24,6 +25,12 @@ await catalogQueue.upsertJobScheduler(
   { pattern: '30 2 * * *', tz: 'UTC' },
   { name: JOB.catalogSync },
 );
+// Programme guide every 6 h, on the catalog queue (one job at a time) so it never overlaps the sync's memory peak.
+await catalogQueue.upsertJobScheduler(
+  'programme-guide',
+  { pattern: '15 */6 * * *', tz: 'UTC' },
+  { name: JOB.guide, opts: { removeOnComplete: true, removeOnFail: 20 } },
+);
 // 1000 streams every 15 min checks ~16k streams within the 4 h recheck window.
 // A fresh database (first deploy) gets its catalog now instead of at the next 02:30 UTC run.
 const [first] = (await db.execute<{ count: number }>(sql`select count(*)::int as count from channels`)).rows;
@@ -31,6 +38,9 @@ if (first?.count === 0) {
   log.info('empty catalog: running the first sync now');
   await catalogQueue.add(JOB.catalogSync, {}, { jobId: 'initial-sync', removeOnComplete: true });
 }
+// No guide yet (first deploy with the guide): fetch it now rather than at the next quarter past.
+const [guide] = (await db.execute<{ n: number }>(sql`select count(*)::int as n from programmes`)).rows;
+if (guide?.n === 0) await catalogQueue.add(JOB.guide, {}, { jobId: 'initial-guide', removeOnComplete: true });
 await healthQueue.upsertJobScheduler(
   'health-batch',
   { every: config.healthBatchEveryMin * 60_000 },
@@ -81,6 +91,7 @@ const handlers: Record<string, Processor> = {
     if (changed) await refreshPublicChannels(db);
     return { inserted, changed };
   },
+  [JOB.guide]: async () => runGuide(db, connection),
   [JOB.healthScore]: async () => {
     // Before the prune: yesterday's reports must still be there.
     const rolledUp = await rollupDailyStats(db);

@@ -16,6 +16,8 @@ import { sessionId, visitorAge } from '@/lib/session';
 import { recordWatch, useLibrary } from '@/lib/storage/library';
 import { cn } from '@/lib/utils';
 import {
+  AirPlayIcon,
+  CastIcon,
   ChevronDown,
   ChevronLeft,
   ChevronUp,
@@ -27,6 +29,7 @@ import {
   PlayIcon,
   VolumeIcon,
 } from '@/components/ui/icons';
+import { useAirPlay, useCast } from './cast';
 import { ChannelList } from './channel-list';
 import { PlayerOverlay } from './player-overlay';
 import { openShortcuts, ShortcutsDialog } from './shortcuts';
@@ -119,6 +122,8 @@ export function Player({
   const [levels, setLevels] = useState<Level[]>([]);
   const [level, setLevel] = useState(-1);
   const [saver, setSaver] = useState(false);
+  /** The browser plays the stream itself (Safari, iOS): AirPlay works then. */
+  const [native, setNative] = useState(false);
   const [audio, setAudio] = useState<{ options: AudioOption[]; active: number }>({ options: [], active: -1 });
   const [needsTap, setNeedsTap] = useState(false);
   const [idle, setIdle] = useState(false);
@@ -258,6 +263,7 @@ export function Player({
       onError: fail,
       onReady: (hls) => {
         hlsRef.current = hls;
+        setNative(hls === null);
         if (hls) {
           hls.on('hlsManifestParsed' as Events.MANIFEST_PARSED, () => {
             const seen = new Set<number>();
@@ -315,6 +321,7 @@ export function Player({
       setLevels([]);
       setLevel(-1);
       setSaver(false);
+      setNative(false);
       setAudio({ options: [], active: -1 });
     };
     // state.attempt forces a fresh attach on retry even when the stream is the same.
@@ -505,6 +512,24 @@ export function Player({
     openFavorite,
   ]);
 
+  // Cast to a TV: only a verified stream (it allows cross-origin playback, which the receiver needs).
+  const castMedia = useMemo(
+    () =>
+      stream && !trying ? { url: stream.url, title: channel.name, subtitle: meta, logo: channel.logo } : null,
+    [stream, trying, channel.name, meta, channel.logo],
+  );
+  const cast = useCast(full && state.status === 'playing', castMedia);
+  const airplay = useAirPlay(videoRef, native);
+  // The TV plays it now: pause here, and pick up again (at live) when casting stops.
+  const wasCasting = useRef(false);
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (cast.casting) v.pause();
+    else if (wasCasting.current) void v.play().catch(() => {});
+    wasCasting.current = Boolean(cast.casting);
+  }, [cast.casting, stream?.id]);
+
   const playing = state.status === 'playing';
   const currentHeight = levels.find((l) => l.index === level)?.height;
   const btn = cn(
@@ -619,6 +644,24 @@ export function Player({
           />
         )}
         <SwipeHint show={fullscreen && lineup.length > 1} />
+        {cast.casting && (
+          <div
+            role="status"
+            className="bg-surface text-text absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center"
+          >
+            <CastIcon size={36} className="text-text-muted" />
+            <p className="text-base font-semibold">
+              {channel.name} is playing on {cast.casting}
+            </p>
+            <button
+              type="button"
+              onClick={cast.stop}
+              className="border-border bg-surface-raised h-11 rounded-[8px] border px-[18px] text-sm font-semibold"
+            >
+              Stop casting
+            </button>
+          </div>
+        )}
 
         {needsTap && playing && (
           <button
@@ -814,6 +857,22 @@ export function Player({
             >
               <PipIcon size={full ? 22 : 20} />
             </button>
+            {full && cast.available && (
+              <button
+                type="button"
+                className={btn}
+                onClick={cast.casting ? cast.stop : cast.start}
+                aria-label={cast.casting ? `Stop casting to ${cast.casting}` : 'Cast to TV'}
+                aria-pressed={Boolean(cast.casting)}
+              >
+                <CastIcon />
+              </button>
+            )}
+            {full && airplay.available && (
+              <button type="button" className={btn} onClick={airplay.show} aria-label="AirPlay">
+                <AirPlayIcon />
+              </button>
+            )}
             {fullscreen && (
               <button
                 type="button"

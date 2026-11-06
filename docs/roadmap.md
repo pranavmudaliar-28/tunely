@@ -42,7 +42,7 @@ From the feature review of 6 Nov 2026. Each item builds on what Tunely already d
 | A1       | Smart search v1: "tamil news", "kids", "sports uk" become filters (rules, no AI)                |
 | H1 spike | Guide coverage measured: see below                                                              |
 
-**Waiting for the owner:** H7, a Cast (Chromecast Web Sender) and AirPlay button. It loads Google's Cast script, which needs a CSP allowance in Phase 6.
+**H7 Cast and AirPlay:** done on 6 Nov 2026, owner approved. Phase 6's CSP must allow `https://www.gstatic.com`.
 
 **Guide coverage (6 Nov 2026):**
 
@@ -50,7 +50,9 @@ From the feature review of 6 Nov 2026. Each item builds on what Tunely already d
 - `i.mjh.nz` publishes ready XMLTV files and covers 42 of the top 200: start there, with no scraping.
 - Indian channels mostly need iptv-org's grabber on `tataplay.com`, which scrapes the site: the owner's call.
 
-## Phase 3: knows what's on, everywhere (about 2–3 months)
+## Phase 3: knows what's on, everywhere (started 6 Nov 2026)
+
+Done: **H1 Now & Next on watch pages**, from i.mjh.nz only (owner decision: no scraping), about 300 live channels. Still to do for H1: "Now" on channel cards and in search.
 
 | ID  | Feature                                                                      | Size |
 | --- | ---------------------------------------------------------------------------- | ---- |
@@ -66,8 +68,8 @@ From the feature review of 6 Nov 2026. Each item builds on what Tunely already d
 
 ## Owner decisions needed
 
-- **Programme guide data:** iptv-org no longer publishes ready-made guides. Either run their grabber, which scrapes listing sites and needs a machine such as the Oracle free box, or use community XMLTV feeds. Both carry terms-of-service risk.
-- **Cast:** the Google Cast sender script, which needs a CSP allowance in Phase 6.
+- **More guide coverage (India):** running iptv-org's grabber on `tataplay.com` and similar sites means scraping them; it needs a machine (e.g. the Oracle free box) and carries terms-of-service risk. Not done; the owner chose i.mjh.nz only for now.
+- **Dead-air detection (A2):** needs audio analysis to tell a frozen picture from a radio channel's still image.
 - **Paid AI:** an LLM for smart search v2 or catalog checks.
 - **Large dependency:** the on-device speech model for A4.
 - **Accounts:** when to start them.

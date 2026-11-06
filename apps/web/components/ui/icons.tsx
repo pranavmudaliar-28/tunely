@@ -155,3 +155,13 @@ export const CaptionsIcon = (p: P) => (
     <path d="M10.5 10.2a2.2 2.2 0 1 0 0 3.6M17 10.2a2.2 2.2 0 1 0 0 3.6" />
   </svg>
 );
+export const CastIcon = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M3 9V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6M3 13a7 7 0 0 1 7 7M3 17a3 3 0 0 1 3 3M3 21h.01" />
+  </svg>
+);
+export const AirPlayIcon = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M6 17H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-1M12 15l5 6H7z" />
+  </svg>
+);

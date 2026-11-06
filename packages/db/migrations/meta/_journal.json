@@ -50,6 +50,13 @@
       "when": 1793953067089,
       "tag": "0006_cultured_robin_chapel",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793957979931,
+      "tag": "0007_zippy_talisman",
+      "breakpoints": true
     }
   ]
 }

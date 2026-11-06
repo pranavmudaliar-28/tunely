@@ -10,6 +10,7 @@ export const JOB = {
   healthBatch: 'health-batch',
   healthScore: 'health-score',
   flushReports: 'flush-reports',
+  guide: 'programme-guide',
 } as const;
 
 // Redis list the API appends playback reports to; the worker drains it into Postgres in batches.

@@ -249,11 +249,26 @@ export const publicRoutes =
                 lastOkAt: r.last_ok_at ? new Date(r.last_ok_at).toISOString() : null,
               };
           }
+          // Up to 4, so a page cached for a few minutes still has what's on when it is viewed.
+          const guide = await db.execute<{
+            title: string;
+            description: string | null;
+            start: Date | string;
+            stop: Date | string;
+          }>(sql`select title, description, start, stop from programmes
+                 where channel_id = ${row.id} and stop > now() order by start limit 4`);
+          const schedule = guide.rows.map((p) => ({
+            title: p.title,
+            description: p.description,
+            start: new Date(p.start).toISOString(),
+            stop: new Date(p.stop).toISOString(),
+          }));
           return {
             ...toSummary(row),
             website: row.website,
             replacedBy,
             reliability,
+            schedule,
             streams: streams.map(({ height, score, webPlayable, nativePlayable, ...s }) => ({
               ...s,
               score: score ?? 0,

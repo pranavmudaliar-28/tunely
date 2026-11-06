@@ -76,3 +76,32 @@ test('data saver choice is kept', async ({ page }) => {
   await page.reload();
   await expect(page.getByRole('radio', { name: 'Always on' })).toBeChecked();
 });
+
+test("the watch page shows what's on now and next", async ({ page, request }) => {
+  const api = process.env.E2E_API_URL ?? 'http://localhost:4000';
+  // Looking for a channel with a guide takes many requests: the internal key skips the per-IP limit.
+  const key = process.env.INTERNAL_API_KEY;
+  const get = (path: string) =>
+    request.get(`${api}${path}`, { headers: key ? { 'x-internal-key': key } : {} });
+  const { items } = (await (await get('/v1/channels?status=live&sort=best&limit=100')).json()) as {
+    items: { id: string }[];
+  };
+  let found: { id: string; title: string } | null = null;
+  for (const { id } of items) {
+    const ch = (await (await get(`/v1/channels/${encodeURIComponent(id)}`)).json()) as {
+      schedule?: { title: string; start: string; stop: string }[];
+    };
+    const now = ch.schedule?.find(
+      (p) => Date.parse(p.start) <= Date.now() && Date.parse(p.stop) > Date.now(),
+    );
+    if (now) {
+      found = { id, title: now.title };
+      break;
+    }
+  }
+  test.skip(!found, 'no programme guide in this database (run pnpm --filter @tunely/worker guide:once)');
+  await page.goto(`/watch/${encodeURIComponent(found!.id)}`);
+  const block = page.getByRole('region', { name: 'On this channel' });
+  await expect(block.getByText(found!.title, { exact: true }).first()).toBeVisible();
+  await expect(block.getByText(/min left|h left/)).toBeVisible();
+});

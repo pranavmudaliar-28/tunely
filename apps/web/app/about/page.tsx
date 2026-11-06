@@ -26,6 +26,14 @@ export default function AboutPage() {
         , an open-source project that collects publicly available stream links. We sync it every day, check
         every stream several times a day, and show you which channels are live right now.
       </p>
+      <p>
+        What&apos;s on now and next comes from the free programme guides published by{' '}
+        <a href="https://i.mjh.nz" rel="noopener">
+          i.mjh.nz
+        </a>{' '}
+        (Matt Huisman), matched to channels through iptv-org. We read them every 6 hours; not every channel
+        has a guide.
+      </p>
       <h2>We only link, we never host</h2>
       <p>
         {SITE_NAME} does not host, record, re-stream or store any video. The player connects your browser

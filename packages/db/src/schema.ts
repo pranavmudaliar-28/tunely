@@ -233,6 +233,32 @@ export const channelCuration = pgTable(
   (t) => [index('channel_curation_status_idx').on(t.status)],
 );
 
+// ---- Programme guide ----
+
+/** Where a channel's schedule is published (from iptv-org guides.json). site_id is "file#channel" for i.mjh.nz. */
+export const guideSources = pgTable(
+  'guide_sources',
+  {
+    channelId: text('channel_id').notNull(),
+    site: text('site').notNull(),
+    siteId: text('site_id').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.channelId, t.site, t.siteId] })],
+);
+
+/** Programmes from about now to 36 h ahead, for live channels with a guide; ended ones are deleted. */
+export const programmes = pgTable(
+  'programmes',
+  {
+    channelId: text('channel_id').notNull(),
+    start: timestamp('start', { withTimezone: true }).notNull(),
+    stop: timestamp('stop', { withTimezone: true }).notNull(),
+    title: text('title').notNull(),
+    description: text('description'),
+  },
+  (t) => [primaryKey({ columns: [t.channelId, t.start] })],
+);
+
 export const takedownRequests = pgTable('takedown_requests', {
   id: uuid('id').primaryKey().defaultRandom(),
   channelId: text('channel_id'),

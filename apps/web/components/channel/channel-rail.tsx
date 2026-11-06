@@ -35,6 +35,7 @@ export function ChannelRail({
   seeAllHref,
   languageNames,
   eager,
+  note,
 }: {
   title: string;
   items: ChannelSummary[];
@@ -42,6 +43,8 @@ export function ChannelRail({
   /** language code -> English name, for the card subtitles */
   languageNames?: Record<string, string>;
   eager?: boolean;
+  /** Text put before a card's subtitle, e.g. "Back online". */
+  note?: (c: ChannelSummary) => string | undefined;
 }) {
   const headingId = useId();
   if (!items.length) return null;
@@ -58,7 +61,7 @@ export function ChannelRail({
             <ChannelCard
               channel={c}
               lineup={items}
-              meta={channelMeta(c, languageNames)}
+              meta={[note?.(c), channelMeta(c, languageNames)].filter(Boolean).join(' · ')}
               eager={eager && i < 4}
             />
           </div>

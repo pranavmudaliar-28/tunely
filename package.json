@@ -13,7 +13,8 @@
     "test": "turbo run test",
     "format": "prettier --write .",
     "db:generate": "pnpm --filter @tunely/db generate",
-    "db:migrate": "pnpm --filter @tunely/db migrate"
+    "db:migrate": "pnpm --filter @tunely/db migrate",
+    "stats": "pnpm --filter @tunely/worker stats"
   },
   "devDependencies": {
     "esbuild": "0.28.2",

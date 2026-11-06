@@ -2,6 +2,10 @@ export const SITE_NAME = 'Tunely';
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
 export const CONTACT_EMAIL = 'pranavmudaliar36@gmail.com';
 
+/** Pre-filled email (no form backend yet): the details save a round of questions. */
+export const mailto = (subject: string, lines: string[]) =>
+  `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`;
+
 const httpsUrl = (v: string | undefined) => {
   try {
     return v?.trim() && new URL(v.trim()).protocol === 'https:' ? v.trim() : null;

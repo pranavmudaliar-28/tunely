@@ -25,6 +25,7 @@ export default async function Browse({ searchParams }: { searchParams: Search })
     language: one(sp.language),
     q: one(sp.q),
     status: STATUSES.find((s) => s === one(sp.status)),
+    sort: one(sp.sort) === 'best' ? ('best' as const) : undefined,
   };
   return <BrowsePage title="Browse channels" filters={filters} />;
 }

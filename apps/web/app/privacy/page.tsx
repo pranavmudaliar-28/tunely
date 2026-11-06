@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <ProsePage title="Privacy policy" updated="29 October 2026">
+    <ProsePage title="Privacy policy" updated="6 November 2026">
       <p>
         {SITE_NAME} works without an account. This page explains what little data the site uses, and how the
         ads on it use cookies.
@@ -18,8 +18,14 @@ export default function PrivacyPage() {
 
       <h2>What stays on your device</h2>
       <ul>
-        <li>Your favorites, recently watched channels, volume and theme are saved in your browser only.</li>
-        <li>We never see them, and clearing your browser data removes them.</li>
+        <li>
+          Your favorites, watch history, settings (languages, country, volume, picture quality, theme) and the
+          date of your first visit are saved in your browser only.
+        </li>
+        <li>
+          We never see them, and clearing your browser data removes them. You can remove single channels or
+          your whole history on the Watch history page.
+        </li>
       </ul>
 
       <h2>What we collect</h2>
@@ -28,6 +34,15 @@ export default function PrivacyPage() {
           When a channel starts or fails to play, your browser sends an anonymous playback report: which
           stream, whether it played, the error type and how long it took. We use it to show which channels
           work.
+        </li>
+        <li>
+          The report also says roughly how long ago this browser first used {SITE_NAME}: the same day, within
+          a week, within a month, or longer. That tells us whether people come back. The date itself never
+          leaves your browser, and the bucket cannot identify you.
+        </li>
+        <li>
+          We keep reports for 2 days. After that only daily totals remain (number of plays, how many worked,
+          typical start time), with nothing that links to a person.
         </li>
         <li>
           We do not store IP addresses. To count distinct viewers we keep a hash of a random session id,

@@ -213,9 +213,25 @@ export const publicRoutes =
               sql`${schema.streamHealth.score} desc nulls last`,
               sql`${schema.streamHealth.height} desc nulls last`,
             );
+          // A closed channel points to its successor, if that one is listed (iptv-org may add "@feed").
+          let replacedBy: { id: string; name: string } | null = null;
+          if (row.status === 'closed') {
+            const [ch] = await db
+              .select({ replacedBy: schema.channels.replacedBy })
+              .from(schema.channels)
+              .where(eq(schema.channels.id, row.id));
+            const nextId = ch?.replacedBy?.split('@')[0];
+            if (nextId) {
+              [replacedBy = null] = await db
+                .select({ id: pc.id, name: pc.name })
+                .from(pc)
+                .where(eq(pc.id, nextId));
+            }
+          }
           return {
             ...toSummary(row),
             website: row.website,
+            replacedBy,
             streams: streams.map(({ height, score, webPlayable, nativePlayable, ...s }) => ({
               ...s,
               score: score ?? 0,

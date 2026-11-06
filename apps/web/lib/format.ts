@@ -91,6 +91,15 @@ export function tint(id: string): string {
   return TINTS[h % TINTS.length]!;
 }
 
+/** "Under a minute", "45 min", "2 h 10 min". */
+export function watchTime(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  if (m < 1) return 'Under a minute';
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  return m % 60 ? `${h} h ${m % 60} min` : `${h} h`;
+}
+
 export function timeAgo(ts: number, now = Date.now()): string {
   const s = Math.max(0, Math.round((now - ts) / 1000));
   if (s < 3600) return 'Watched just now';

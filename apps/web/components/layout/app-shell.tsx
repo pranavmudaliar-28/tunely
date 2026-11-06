@@ -3,7 +3,7 @@ import { GridIcon, HeartIcon, HomeIcon, LogoMark, TvIcon } from '@/components/ui
 import { NavLink } from './nav-link';
 import { PageAds } from '@/components/ads/page-ads';
 import { GlobalPlayer } from '@/components/player/global-player';
-import { SearchCommand } from '@/components/search/search-command';
+import { SearchButton, SearchCommand } from '@/components/search/search-command';
 import { InstallButton } from './install-button';
 import { ThemeToggle } from './theme-toggle';
 import { FOOTER_PAGES, SUPPORT_URL } from '@/lib/site';
@@ -30,6 +30,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <LogoMark />
         </Link>
         <div className="flex items-center">
+          <SearchButton />
           <InstallButton />
           <ThemeToggle />
         </div>
@@ -50,6 +51,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <item.icon />
           </NavLink>
         ))}
+        <SearchButton rail />
         <span className="hidden grow min-[720px]:block" />
         <span className="hidden min-[720px]:contents">
           <InstallButton />
@@ -74,6 +76,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             project.
           </p>
           <nav aria-label="Site" className="flex flex-wrap gap-x-5 gap-y-2">
+            {/* Not in FOOTER_PAGES: those also go in the sitemap, and settings is per-browser. */}
+            <Link href="/settings" className="text-text-muted hover:text-text">
+              Settings
+            </Link>
             {FOOTER_PAGES.map((p) => (
               <Link key={p.href} href={p.href} className="text-text-muted hover:text-text">
                 {p.label}

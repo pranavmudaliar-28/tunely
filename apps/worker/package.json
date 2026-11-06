@@ -12,7 +12,8 @@
     "test": "vitest run",
     "sync:once": "tsx --env-file-if-exists=../../.env scripts/sync-once.ts",
     "curate": "tsx --env-file-if-exists=../../.env scripts/curate.ts",
-    "health:once": "tsx --env-file-if-exists=../../.env scripts/health-once.ts"
+    "health:once": "tsx --env-file-if-exists=../../.env scripts/health-once.ts",
+    "stats": "tsx --env-file-if-exists=../../.env scripts/stats.ts"
   },
   "dependencies": {
     "@tunely/db": "workspace:*",

@@ -8,6 +8,7 @@ import { dbFromEnv } from './db';
 import { runCatalogSync } from './jobs/catalog-sync';
 import { pruneHistory, rescore, runHealthBatch } from './jobs/health';
 import { flushReports } from './jobs/reports';
+import { rollupDailyStats } from './jobs/stats';
 import { createRedis } from './redis';
 
 const log = pino({ level: process.env.LOG_LEVEL ?? 'info' });
@@ -81,10 +82,12 @@ const handlers: Record<string, Processor> = {
     return { inserted, changed };
   },
   [JOB.healthScore]: async () => {
+    // Before the prune: yesterday's reports must still be there.
+    const rolledUp = await rollupDailyStats(db);
     await pruneHistory(db);
     const { scored: rescored } = await rescore(db);
     await refreshPublicChannels(db);
-    return { rescored };
+    return { rescored, rolledUp };
   },
 };
 

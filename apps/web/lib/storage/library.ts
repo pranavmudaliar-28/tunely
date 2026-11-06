@@ -118,6 +118,9 @@ export function loadLibrary(): Promise<void> {
  */
 async function change<K extends keyof Library>(key: K, fn: (current: Library[K]) => Library[K]) {
   await loadLibrary();
+  // Show the change at once (a controlled checkbox would otherwise snap back until the write lands); the stored
+  // merge below then folds in any other tab's changes.
+  emit({ ...state, [key]: fn(state[key]) });
   let next: Library[K] | undefined;
   try {
     await update(key, (stored) => (next = fn(READ[key](stored))), store());
@@ -150,10 +153,11 @@ const sameName = (a: string, b: string) => a.toLocaleLowerCase() === b.toLocaleL
 export async function createFolder(name: string): Promise<string | null> {
   const clean = cleanName(name);
   if (!clean) return null;
+  const id = crypto.randomUUID(); // outside fn: change() applies it twice and both must agree
   const folders = await change('folders', (folders) =>
     folders.some((f) => sameName(f.name, clean)) || folders.length >= FOLDER_LIMIT
       ? folders
-      : [...folders, { id: crypto.randomUUID(), name: clean, channelIds: [] }],
+      : [...folders, { id, name: clean, channelIds: [] }],
   );
   return folders.find((f) => sameName(f.name, clean))?.id ?? null;
 }
@@ -201,6 +205,33 @@ export async function recordWatch(channel: ChannelSummary, seconds = 0, now = Da
     };
     return [entry, ...history.filter((h) => h.channel.id !== channel.id)].slice(0, HISTORY_LIMIT);
   });
+}
+
+export async function removeFromHistory(channelId: string) {
+  await change('history', (history) => history.filter((h) => h.channel.id !== channelId));
+}
+
+export async function clearHistory() {
+  await change('history', () => []);
+}
+
+/** Store fresh card fields (status, logo, name) for favorites, so the next visit compares against today. */
+export async function refreshFavorites(fresh: ChannelSummary[]) {
+  const byId = new Map(fresh.map((c) => [c.id, c]));
+  await change('favorites', (list) =>
+    list.map((c) => {
+      const f = byId.get(c.id);
+      return f ? snapshot(f) : c;
+    }),
+  );
+}
+
+/** Ids of favorites that were not live when last stored and are live now. */
+export function backOnline(stored: ChannelSummary[], fresh: ChannelSummary[]): Set<string> {
+  const was = new Map(stored.map((c) => [c.id, c.status ?? 'live']));
+  return new Set(
+    fresh.filter((c) => c.status === 'live' && was.has(c.id) && was.get(c.id) !== 'live').map((c) => c.id),
+  );
 }
 
 function subscribe(listener: () => void) {

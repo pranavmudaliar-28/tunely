@@ -9,6 +9,8 @@ import { HeroCarousel, type HeroSlide } from '@/components/channel/hero-carousel
 import { HeroWall } from '@/components/channel/hero-wall';
 import { LazyRail } from '@/components/channel/lazy-rail';
 import { LocalRail } from '@/components/channel/local-rail';
+import { YourChannels } from '@/components/channel/your-channels';
+import { WelcomeCard, YourLanguageRails } from '@/components/channel/your-languages';
 import { HomeAbout } from '@/components/home-about';
 import { api } from '@/lib/api-client';
 import { channelMeta, countryName, nativeLanguageName } from '@/lib/format';
@@ -206,7 +208,10 @@ export default async function HomePage() {
       </section>
 
       <div className="flex flex-col gap-10 pt-2 pb-12 pl-4 sm:pl-14">
+        <WelcomeCard languages={languages.slice(0, 12).map(({ id, name }) => ({ id, name }))} />
         <ContinueWatching />
+        <YourChannels languageNames={languageNames} />
+        <YourLanguageRails languageNames={languageNames} />
         <LocalRail featuredCountry={HOME_COUNTRY} languageNames={languageNames} />
         <ChannelRail
           title={`Popular in ${countryName(HOME_COUNTRY)}`}

@@ -11,6 +11,7 @@ import { PlayerSlot } from '@/components/player/player-slot';
 import { api, ApiError } from '@/lib/api-client';
 import { channelMeta, countryName } from '@/lib/format';
 import { breadcrumbs, channelAbout, channelJsonLd } from '@/lib/seo';
+import { mailto, SITE_URL } from '@/lib/site';
 
 export const revalidate = 300;
 
@@ -92,8 +93,8 @@ export default async function WatchPage({ params }: Props) {
           <p className="text-text-soft max-w-[720px] text-[15px] leading-relaxed">
             {channelAbout(channel, languageNames, categoryNames)}
           </p>
-          {channel.website && (
-            <p className="text-text-soft text-[15px]">
+          <p className="text-text-soft flex flex-wrap gap-x-5 gap-y-2 text-[15px]">
+            {channel.website && (
               <a
                 href={channel.website}
                 rel="noopener nofollow"
@@ -102,8 +103,21 @@ export default async function WatchPage({ params }: Props) {
               >
                 Official website
               </a>
-            </p>
-          )}
+            )}
+            <a
+              href={mailto(`Problem with ${channel.name}`, [
+                `Channel: ${channel.name} (${channel.id})`,
+                `Shown as: ${STATUS_TEXT[channel.status]}`,
+                `Page: ${SITE_URL}/watch/${encodeURIComponent(channel.id)}`,
+                '',
+                'What is wrong? (no picture, no sound, wrong channel, wrong logo, other)',
+                '',
+              ])}
+              className="text-text-muted hover:text-text underline underline-offset-2"
+            >
+              Report a problem
+            </a>
+          </p>
         </div>
         <div className="flex flex-wrap gap-2.5">
           <FavoriteButton channel={channel} />

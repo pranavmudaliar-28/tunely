@@ -16,6 +16,7 @@ import {
 import { CloseIcon } from '@/components/ui/icons';
 import { api, type ChannelFilters } from '@/lib/api-client';
 import { channelMeta } from '@/lib/format';
+import { mailto } from '@/lib/site';
 import { ChannelCard, ChannelCardSkeleton } from './channel-card';
 import { FacetCombobox, type ComboOption } from './facet-combobox';
 
@@ -41,7 +42,7 @@ const STATUS_LABEL: Record<ChannelStatus, string> = {
   closed: 'Closed',
 };
 
-const URL_KEYS = ['q', 'country', 'category', 'language', 'status'] as const;
+const URL_KEYS = ['q', 'country', 'category', 'language', 'status', 'sort'] as const;
 
 /** Canonical /browse URL: fixed parameter order, so the same filters always give the same string. */
 export function browseHref(f: Omit<ChannelFilters, 'cursor' | 'limit'>) {
@@ -108,8 +109,10 @@ export function BrowseView({
   };
   // Every change carries the text currently in the box, applied or not.
   // Values come from our own selects and chips, so the status is always a valid ChannelStatus.
-  const set = (patch: Partial<Record<FilterKey | 'q' | 'status', string | undefined>>, replace = false) =>
-    navigate({ ...intended.current, q: typed, ...patch } as ChannelFilters, replace);
+  const set = (
+    patch: Partial<Record<FilterKey | 'q' | 'status' | 'sort', string | undefined>>,
+    replace = false,
+  ) => navigate({ ...intended.current, q: typed, ...patch } as ChannelFilters, replace);
   const clearAll = () => {
     setTerm('');
     navigate({}, false);
@@ -145,11 +148,13 @@ export function BrowseView({
   const items = useMemo(() => query.data.pages.flatMap((p) => p.items), [query.data]);
 
   // Dropdown counts follow every other filter and the search (each dimension ignores its own filter).
-  const [serverHref] = useState(href);
+  // Sorting doesn't change the counts, so it's left out of the key.
+  const countsHref = browseHref({ ...filters, sort: undefined });
+  const [serverHref] = useState(countsHref);
   const counts = useQuery({
-    queryKey: ['facets', href],
-    queryFn: () => api.facets(filters, { cache: 'no-store' }),
-    initialData: href === serverHref && initialCounts ? initialCounts : undefined,
+    queryKey: ['facets', countsHref],
+    queryFn: () => api.facets({ ...filters, sort: undefined }, { cache: 'no-store' }),
+    initialData: countsHref === serverHref && initialCounts ? initialCounts : undefined,
     placeholderData: keepPreviousData,
     staleTime: 60_000,
   }).data;
@@ -212,7 +217,7 @@ export function BrowseView({
         </div>
         <div
           id="b-filters"
-          className={`${filtersOpen ? 'grid' : 'hidden'} grid-cols-2 gap-3 sm:grid sm:grid-cols-4`}
+          className={`${filtersOpen ? 'grid' : 'hidden'} grid-cols-2 gap-3 sm:grid sm:grid-cols-3 lg:grid-cols-5`}
         >
           <FacetCombobox
             id="b-country"
@@ -260,6 +265,23 @@ export function BrowseView({
               ))}
             </select>
           </div>
+          {/* A search is ordered by how well names match, so sorting only applies without one. */}
+          {!filters.q && (
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <label htmlFor="b-sort" className="text-text-muted text-xs font-medium">
+                Sort
+              </label>
+              <select
+                id="b-sort"
+                value={filters.sort ?? ''}
+                onChange={(e) => set({ sort: e.target.value || undefined })}
+                className="border-border bg-bg h-11 w-full min-w-0 rounded-[8px] border px-2.5 text-sm"
+              >
+                <option value="">Live first, A–Z</option>
+                <option value="best">Best quality</option>
+              </select>
+            </div>
+          )}
         </div>
       </form>
 
@@ -308,6 +330,19 @@ export function BrowseView({
           >
             Show all channels
           </button>
+          {filters.q && (
+            <a
+              href={mailto(`Channel request: ${filters.q}`, [
+                `I looked for: ${filters.q}`,
+                'Country / language (if you know):',
+                'Official website or stream (if you know):',
+                '',
+              ])}
+              className="text-text-muted hover:text-text text-sm underline underline-offset-2"
+            >
+              Can&apos;t find it? Request a channel
+            </a>
+          )}
         </div>
       ) : (
         <div aria-busy={pending} className={pending ? 'opacity-50 transition-opacity' : 'transition-opacity'}>

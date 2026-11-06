@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { PlaybackError } from '@/lib/player/attach';
 import type { PlayerStatus } from '@/lib/player/state';
 import { BlockedIcon, GlobeIcon, OfflineIcon } from '@/components/ui/icons';
@@ -47,8 +48,11 @@ export function PlayerOverlay({
   deadReason,
   compact,
   onTryAnyway,
+  successor,
 }: {
   status: PlayerStatus;
+  /** Where a closed channel now broadcasts. */
+  successor?: { id: string; name: string } | null;
   /** Set when the channel has nothing playable at all; overrides the playback error copy. */
   deadReason?: Kind;
   /** Mini player: title only, no body text. */
@@ -107,6 +111,14 @@ export function PlayerOverlay({
       {!compact && <p className="text-text-muted text-sm">{copy.body}</p>}
       {!compact && onTryAnyway && <p className="text-text-muted text-sm">It may still play where you are.</p>}
       <div className="flex flex-wrap justify-center gap-2 pt-1">
+        {kind === 'closed' && successor && (
+          <Link
+            href={`/watch/${encodeURIComponent(successor.id)}`}
+            className="bg-text text-bg flex h-11 items-center rounded-[8px] px-[18px] text-sm font-bold no-underline"
+          >
+            Now on {successor.name}: watch
+          </Link>
+        )}
         {onTryAnyway && (
           <button
             type="button"

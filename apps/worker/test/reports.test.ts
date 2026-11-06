@@ -29,13 +29,20 @@ describe.skipIf(!url)('flushReports', () => {
       result: 'ok',
       errorType: null,
       ttffMs: 900,
+      visitorAge: 'week',
       anonSessionHash: 'h1',
       at: new Date().toISOString(),
     };
     await redis.rpush(
       REPORTS_BUFFER,
       JSON.stringify(ok),
-      JSON.stringify({ ...ok, result: 'error', errorType: 'offline', anonSessionHash: 'h2' }),
+      JSON.stringify({
+        ...ok,
+        result: 'error',
+        errorType: 'offline',
+        anonSessionHash: 'h2',
+        visitorAge: 'bogus',
+      }),
       JSON.stringify({ ...ok, streamId: '00000000-0000-4000-8000-0000000000ff' }), // unknown stream
       'not json',
     );
@@ -44,9 +51,9 @@ describe.skipIf(!url)('flushReports', () => {
     expect(flushed.streamIds).toEqual([stream!.id]);
     expect(await redis.llen(REPORTS_BUFFER)).toBe(0);
     const rows = await db.select().from(schema.playbackReports);
-    expect(rows.map((r) => [r.result, r.errorType, r.ttffMs]).sort()).toEqual([
-      ['error', 'offline', 900],
-      ['ok', null, 900],
+    expect(rows.map((r) => [r.result, r.errorType, r.ttffMs, r.visitorAge]).sort()).toEqual([
+      ['error', 'offline', 900, null],
+      ['ok', null, 900, 'week'],
     ]);
   });
 

@@ -5,7 +5,7 @@ import { useLibrary } from '@/lib/storage/library';
 import { timeAgo } from '@/lib/format';
 import { usePlayerStore } from '@/lib/player/store';
 import { ChannelLogo, LiveBadge } from './channel-logo';
-import { Scroller } from './channel-rail';
+import { RailHeader, Scroller } from './channel-rail';
 
 export function ContinueWatching() {
   const { history } = useLibrary();
@@ -14,9 +14,7 @@ export function ContinueWatching() {
   const items = history.slice(0, 12);
   return (
     <section aria-labelledby="continue">
-      <h2 id="continue" className="pb-3 text-xl font-semibold">
-        Continue watching
-      </h2>
+      <RailHeader id="continue" title="Continue watching" seeAllHref="/history" />
       <Scroller label="Continue watching" list buttonTop={84}>
         {items.map(({ channel, lastWatchedAt }) => (
           <div role="listitem" key={channel.id} className="w-[260px] shrink-0 snap-start sm:w-[300px]">

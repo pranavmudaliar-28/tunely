@@ -33,6 +33,8 @@ export type ChannelSummary = z.infer<typeof ChannelSummarySchema>;
 export const ChannelSchema = ChannelSummarySchema.extend({
   website: z.string().nullable(),
   streams: z.array(StreamSchema),
+  /** A closed channel's listed successor. Defaults to null so a newer web build can read an older API. */
+  replacedBy: z.object({ id: z.string(), name: z.string() }).nullable().default(null),
 });
 export type Channel = z.infer<typeof ChannelSchema>;
 
@@ -105,6 +107,10 @@ export const PlaybackErrorTypes = [
   'unknown',
 ] as const;
 
+/** Days since a browser's first visit: 0, 1–7, 8–30, over 30. Measures return visits without an identifier. */
+export const VisitorAges = ['first_day', 'week', 'month', 'older'] as const;
+export type VisitorAge = (typeof VisitorAges)[number];
+
 export const PlaybackReportSchema = z.object({
   streamId: z.uuid(),
   platform: z.enum(['web', 'android', 'androidtv', 'ios']),
@@ -113,6 +119,8 @@ export const PlaybackReportSchema = z.object({
   ttffMs: z.number().int().min(0).max(120_000).nullable().default(null),
   // Random id the client keeps per browser session; hashed server-side with a daily salt.
   sessionId: z.string().min(8).max(64),
+  // How long ago this browser first used Tunely, as a coarse bucket (no date or id leaves the browser).
+  visitorAge: z.enum(VisitorAges).optional(),
 });
 export type PlaybackReport = z.infer<typeof PlaybackReportSchema>;
 

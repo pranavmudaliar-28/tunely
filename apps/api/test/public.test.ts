@@ -190,6 +190,21 @@ describe.skipIf(!testDbUrl)('public API', () => {
     expect((await get('/v1/channels/Nope.xx')).status).toBe(404);
   });
 
+  test('a closed channel links its listed successor', async () => {
+    expect((await get('/v1/channels/DDNews.in')).body.replacedBy).toBeNull();
+    await db.execute(
+      sql`update channels set closed = '2024-01-01', replaced_by = 'DDNews.in@SD' where id = 'Dead.in'`,
+    );
+    await refreshPublicChannels(db);
+    try {
+      const { body } = await get('/v1/channels/Dead.in');
+      expect(body).toMatchObject({ status: 'closed', replacedBy: { id: 'DDNews.in', name: 'DD News' } });
+    } finally {
+      await db.execute(sql`update channels set closed = null, replaced_by = null where id = 'Dead.in'`);
+      await refreshPublicChannels(db);
+    }
+  });
+
   test('related channels share country or category', async () => {
     const { body } = await get('/v1/channels/DDNews.in/related');
     // Live only (it doubles as the player's channel list): Pending shares country and category, so it leads.
@@ -255,18 +270,31 @@ describe.skipIf(!testDbUrl)('public API', () => {
         platform: 'web',
         result: 'ok',
         ttffMs: 1200,
+        visitorAge: 'month',
         sessionId: 'session-abc-123',
       },
     });
     expect(res.statusCode).toBe(202);
     const [entry] = await redis.lrange(REPORTS_BUFFER, 0, -1);
     const parsed = JSON.parse(entry!);
-    expect(parsed).toMatchObject({ streamId: STREAM.dd, result: 'ok', ttffMs: 1200 });
+    expect(parsed).toMatchObject({ streamId: STREAM.dd, result: 'ok', ttffMs: 1200, visitorAge: 'month' });
     expect(parsed.anonSessionHash).toMatch(/^[0-9a-f]{32}$/);
     expect(entry).not.toContain('session-abc-123');
 
     const bad = await app.inject({ method: 'POST', url: '/v1/playback-reports', payload: { streamId: 'x' } });
     expect(bad.statusCode).toBe(400);
+    const badAge = await app.inject({
+      method: 'POST',
+      url: '/v1/playback-reports',
+      payload: {
+        streamId: STREAM.dd,
+        platform: 'web',
+        result: 'ok',
+        sessionId: 'session-abc-123',
+        visitorAge: '2026-11-01',
+      },
+    });
+    expect(badAge.statusCode).toBe(400);
   });
 
   test('OpenAPI spec is published at /v1/docs', async () => {

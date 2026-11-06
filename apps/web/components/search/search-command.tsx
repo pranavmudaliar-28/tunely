@@ -10,6 +10,27 @@ import { api } from '@/lib/api-client';
 import { channelMeta } from '@/lib/format';
 import { usePlayerStore } from '@/lib/player/store';
 
+const OPEN_EVENT = 'tunely:search';
+
+/** Opens the palette from phones and TVs, which have no Ctrl+K. */
+export function SearchButton({ rail = false }: { rail?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}
+      aria-label={rail ? undefined : 'Search channels'}
+      className={
+        rail
+          ? 'text-text-muted hover:text-text hidden min-h-11 w-[72px] flex-col items-center justify-center gap-1 rounded-[10px] py-2 text-[11px] font-medium min-[720px]:flex'
+          : 'text-text-muted hover:text-text flex size-11 items-center justify-center rounded-[10px]'
+      }
+    >
+      <SearchIcon />
+      {rail && 'Search'}
+    </button>
+  );
+}
+
 /** Cmd/Ctrl+K palette. A native <dialog> gives focus trapping and Esc for free. */
 export function SearchCommand() {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -47,7 +68,11 @@ export function SearchCommand() {
       }
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener(OPEN_EVENT, open);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener(OPEN_EVENT, open);
+    };
   }, []);
 
   function choose(c: ChannelSummary) {

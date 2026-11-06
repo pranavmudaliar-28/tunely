@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   bigserial,
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -188,9 +189,34 @@ export const playbackReports = pgTable(
     errorType: text('error_type'),
     ttffMs: integer('ttff_ms'),
     anonSessionHash: text('anon_session_hash').notNull(),
+    /** first_day | week | month | older; null from older clients. */
+    visitorAge: text('visitor_age'),
     createdAt: createdAt(),
   },
   (t) => [index('playback_reports_stream_time_idx').on(t.streamId, t.createdAt)],
+);
+
+/**
+ * Daily totals rolled up from playback_reports before they are deleted (2 days), one row per day and platform.
+ * No identifiers: counts and percentiles only.
+ */
+export const dailyStats = pgTable(
+  'daily_stats',
+  {
+    day: date('day').notNull(),
+    platform: text('platform').notNull(),
+    /** Distinct sessions (one per browser tab per day). */
+    sessions: integer('sessions').notNull(),
+    attempts: integer('attempts').notNull(),
+    ok: integer('ok').notNull(),
+    /** Failed attempts by error type. */
+    errors: jsonb('errors').$type<Record<string, number>>().notNull(),
+    /** Sessions by visitor age (first_day, week, month, older, unknown). */
+    visitors: jsonb('visitors').$type<Record<string, number>>().notNull(),
+    ttffP50: integer('ttff_p50'),
+    ttffP90: integer('ttff_p90'),
+  },
+  (t) => [primaryKey({ columns: [t.day, t.platform] })],
 );
 
 export const curationStatus = ['approved', 'hidden', 'pending', 'removed'] as const;

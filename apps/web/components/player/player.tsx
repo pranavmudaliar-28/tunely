@@ -9,8 +9,8 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState, useSyncE
 import { sendPlaybackReport } from '@/lib/api-client';
 import { attachStream, type PlaybackError } from '@/lib/player/attach';
 import { initialPlayerState, playerReducer } from '@/lib/player/state';
-import { neighbour, usePlayerStore } from '@/lib/player/store';
-import { sessionId } from '@/lib/session';
+import { neighbour, preferredLevel, usePlayerStore } from '@/lib/player/store';
+import { sessionId, visitorAge } from '@/lib/session';
 import { recordWatch } from '@/lib/storage/library';
 import { cn } from '@/lib/utils';
 import {
@@ -87,7 +87,15 @@ export function Player({
             ? 'browser_blocked'
             : 'offline';
   const [state, dispatch] = useReducer(playerReducer, streams.length, initialPlayerState);
-  const { muted, volume, setMuted, setVolume, setLineup, lineup: storedLineup } = usePlayerStore();
+  const {
+    muted,
+    volume,
+    setMuted,
+    setVolume,
+    setQuality,
+    setLineup,
+    lineup: storedLineup,
+  } = usePlayerStore();
   const [levels, setLevels] = useState<Level[]>([]);
   const [level, setLevel] = useState(-1);
   const [needsTap, setNeedsTap] = useState(false);
@@ -120,6 +128,32 @@ export function Player({
     },
     [lineup, channel.id, router, setLineup],
   );
+
+  // Lock screen, notification and headset buttons: channel name and logo; previous/next change channel.
+  const canZap = lineup.length > 1;
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || typeof MediaMetadata === 'undefined') return;
+    const session = navigator.mediaSession;
+    session.metadata = new MediaMetadata({
+      title: channel.name,
+      artist: meta,
+      artwork: channel.logo ? [{ src: channel.logo }] : [],
+    });
+    const actions: [MediaSessionAction, MediaSessionActionHandler | null][] = [
+      ['previoustrack', canZap ? () => go(-1) : null],
+      ['nexttrack', canZap ? () => go(1) : null],
+    ];
+    const set = (handler: (h: MediaSessionActionHandler | null) => MediaSessionActionHandler | null) =>
+      actions.forEach(([action, h]) => {
+        try {
+          session.setActionHandler(action, handler(h));
+        } catch {
+          // Older browsers throw for actions they don't know.
+        }
+      });
+    set((h) => h);
+    return () => set(() => null);
+  }, [channel.name, channel.logo, meta, canZap, go]);
 
   // New channel (the player stays mounted so fullscreen and picture-in-picture survive): reset.
   const firstChannel = useRef(channel.id);
@@ -159,6 +193,7 @@ export function Player({
         errorType,
         ttffMs: result === 'ok' ? Math.round(performance.now() - started) : null,
         sessionId: sessionId(),
+        visitorAge: visitorAge(),
       });
     };
     const fail = (error: PlaybackError) => {
@@ -182,12 +217,13 @@ export function Player({
         if (hls) {
           hls.on('hlsManifestParsed' as Events.MANIFEST_PARSED, () => {
             const seen = new Set<number>();
-            setLevels(
-              hls.levels
-                .map((l, index) => ({ index, height: l.height }))
-                .filter((l) => l.height && !seen.has(l.height) && seen.add(l.height))
-                .sort((a, b) => b.height - a.height),
-            );
+            const list = hls.levels
+              .map((l, index) => ({ index, height: l.height }))
+              .filter((l) => l.height && !seen.has(l.height) && seen.add(l.height))
+              .sort((a, b) => b.height - a.height);
+            setLevels(list);
+            const pick = preferredLevel(list, usePlayerStore.getState().quality);
+            if (pick !== -1) hls.currentLevel = pick;
           });
           hls.on('hlsLevelSwitched' as Events.LEVEL_SWITCHED, () =>
             setLevel(hls.autoLevelEnabled ? -1 : hls.currentLevel),
@@ -428,6 +464,7 @@ export function Player({
           canGoNext={full && lineup.length > 1}
           deadReason={deadReason}
           onTryAnyway={!trying && unverified.length ? tryAnyway : undefined}
+          successor={channel.replacedBy}
           compact={!full}
         />
 
@@ -545,6 +582,7 @@ export function Player({
                     const next = Number(e.target.value);
                     if (hlsRef.current) hlsRef.current.currentLevel = next;
                     setLevel(next);
+                    setQuality(levels.find((l) => l.index === next)?.height ?? null);
                   }}
                   className="h-10 max-w-[104px] rounded-[8px] bg-white/15 px-2 text-sm font-semibold text-[#F2F4F8] sm:max-w-none sm:px-3 [&>option]:text-black"
                 >

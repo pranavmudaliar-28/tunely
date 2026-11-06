@@ -3,10 +3,15 @@ import { clear, createStore, set } from 'idb-keyval';
 import { beforeEach, expect, test } from 'vitest';
 import {
   __resetLibrary,
+  backOnline,
+  clearHistory,
   createFolder,
   deleteFolder,
   FOLDER_LIMIT,
   loadLibrary,
+  recordWatch,
+  refreshFavorites,
+  removeFromHistory,
   renameFolder,
   toggleFavorite,
   toggleInFolder,
@@ -109,4 +114,39 @@ test('malformed stored folders are ignored', async () => {
   __resetLibrary();
   await loadLibrary();
   expect(library().folders).toEqual([{ id: 'ok', name: 'Good', channelIds: ['a'] }]);
+});
+
+test('remove one channel from history, or clear it all', async () => {
+  await recordWatch(channel('a'), 60, 1);
+  await recordWatch(channel('b'), 30, 2);
+  await recordWatch(channel('c'), 0, 3);
+  await removeFromHistory('b');
+  expect(library().history.map((h) => h.channel.id)).toEqual(['c', 'a']);
+  await clearHistory();
+  expect(library().history).toEqual([]);
+  __resetLibrary();
+  await loadLibrary();
+  expect(library().history).toEqual([]); // stored, not just in memory
+});
+
+test('favorites take fresh card fields; "back online" compares with what was stored', async () => {
+  await toggleFavorite({ ...channel('a'), status: 'offline' });
+  await toggleFavorite({ ...channel('b'), status: 'live' });
+  await toggleFavorite({ ...channel('c'), status: 'offline' });
+  const fresh = [
+    { ...channel('a'), status: 'live' as const, logo: 'https://example.com/a.png' },
+    { ...channel('b'), status: 'live' as const },
+    { ...channel('c'), status: 'closed' as const },
+    { ...channel('z'), status: 'live' as const }, // not a favorite
+  ];
+  expect([...backOnline(library().favorites, fresh)]).toEqual(['a']);
+
+  await refreshFavorites(fresh);
+  expect(library().favorites.map((c) => [c.id, c.status, c.logo])).toEqual([
+    ['c', 'closed', null],
+    ['b', 'live', null],
+    ['a', 'live', 'https://example.com/a.png'],
+  ]);
+  // Next visit: nothing new came back.
+  expect(backOnline(library().favorites, fresh).size).toBe(0);
 });

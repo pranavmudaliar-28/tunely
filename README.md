@@ -34,6 +34,7 @@ pnpm dev                      # web :3000, api :4000, worker
 | `pnpm typecheck` / `lint` / `test` | Checks run in CI                         |
 | `pnpm db:generate`                 | Generate a migration from schema changes |
 | `pnpm db:migrate`                  | Apply migrations                         |
+| `pnpm stats [--days N]`            | Daily playback totals (last 14 days)     |
 
 **Deploying:** free with no card, see [docs/deploy-free-nocard.md](docs/deploy-free-nocard.md); free on one always-on server, see [docs/deploy-free.md](docs/deploy-free.md); or managed services (Vercel + Railway), see [docs/deploy.md](docs/deploy.md).
 
@@ -61,11 +62,14 @@ Tests that touch Postgres use `TEST_DATABASE_URL` (`createdb tunely_test`, then 
 
 - `pnpm dev`, then open http://localhost:3000 (needs a synced, health-checked catalog and some approved channels; see above).
 - `pnpm --filter @tunely/worker health:once` checks every due stream now (~25 min for the full catalog).
-- `pnpm --filter @tunely/web e2e` runs Playwright against the running stack in your installed Chrome.
+- `pnpm --filter @tunely/web e2e` runs Playwright against the running stack in your installed Chrome. Start the api and web with the same `INTERNAL_API_KEY` (any value) so server renders skip the 120/min limit; without it the suite hits 429s and fails at random. Against `next start`, rebuild with the API running, or the home page is prerendered empty.
+- `pnpm stats` prints daily plays, success rate, start time (p50/p90), returning-visitor share and the top error. Rows are written once a day from the hourly scoring job, so the first appears the day after reports start.
 - `MANUAL=1 pnpm --filter @tunely/web e2e` plays 50 random web-playable streams (`/dev/stream-test`) and asserts at least 80% succeed.
 - `pnpm --filter @tunely/api bench` measures cached API latency.
 
-Keyboard: ↑/↓ channel up/down, F fullscreen, M mute, Space pause, Ctrl/⌘+K search.
+Keyboard: ↑/↓ channel up/down, F fullscreen, M mute, Space pause, Ctrl/⌘+K search (or the search button in the header on phones and in the left rail on desktop). Headset and lock-screen previous/next buttons change channel too.
+
+Pages in the browser only: `/history` (remove one channel or clear all) and `/settings` (up to 3 languages, country). The product roadmap is in [docs/roadmap.md](docs/roadmap.md).
 
 ## Earning (Adsterra, donations, affiliates)
 

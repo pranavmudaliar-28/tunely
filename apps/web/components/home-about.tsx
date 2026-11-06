@@ -49,7 +49,7 @@ export function HomeAbout() {
           })),
         }}
       />
-      <h1 id="about-tunely" className="text-xl font-bold">
+      <h1 id="about-tunely" className="text-xl font-semibold">
         Free live TV from around the world
       </h1>
       <p className="text-text-soft text-[15px] leading-relaxed">
@@ -58,7 +58,7 @@ export function HomeAbout() {
         straight away in your browser. Browse by <Link href="/categories">category</Link>, search in{' '}
         <Link href="/browse">Live TV</Link>, or save channels to your favorites.
       </p>
-      <h2 className="pt-2 text-xl font-bold">Frequently asked questions</h2>
+      <h2 className="pt-2 text-xl font-semibold">Frequently asked questions</h2>
       <div className="flex flex-col gap-2">
         {FAQ.map(({ q, a }) => (
           <details key={q} className="border-border bg-surface rounded-[8px] border px-4 py-3">

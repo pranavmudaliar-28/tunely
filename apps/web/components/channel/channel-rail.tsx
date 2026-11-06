@@ -14,16 +14,13 @@ export const RAIL_ITEMS = 12;
 /** Rail title with an optional "See all" link. */
 export function RailHeader({ id, title, seeAllHref }: { id?: string; title: string; seeAllHref?: string }) {
   return (
-    <div className="flex items-baseline gap-3 pr-4 pb-3.5 sm:pr-14">
-      <h2 id={id} className="text-xl font-bold">
+    <div className="flex items-baseline gap-3 pr-4 pb-3 sm:pr-14">
+      <h2 id={id} className="text-xl font-semibold">
         {title}
       </h2>
       <span className="grow" />
       {seeAllHref && (
-        <Link
-          href={seeAllHref}
-          className="text-text-muted hover:text-text text-sm font-semibold no-underline"
-        >
+        <Link href={seeAllHref} className="text-text-muted hover:text-text text-sm font-medium no-underline">
           See all <span aria-hidden="true">›</span>
         </Link>
       )}
@@ -119,7 +116,7 @@ export function Scroller({
         aria-hidden={hidden}
         style={{ top: buttonTop }}
         className={cn(
-          'bg-surface-raised/90 text-text border-border absolute z-10 hidden size-12 -translate-y-1/2 items-center justify-center rounded-full border shadow-lg shadow-black/40 backdrop-blur transition duration-200 hover:scale-110 md:flex',
+          'bg-surface-raised text-text border-border hover:bg-border absolute z-10 hidden size-12 -translate-y-1/2 items-center justify-center rounded-full border transition-[opacity,background-color] duration-200 md:flex',
           dir === -1 ? '-left-3' : 'right-8',
           hidden && 'pointer-events-none opacity-0',
         )}

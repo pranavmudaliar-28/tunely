@@ -80,8 +80,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             ))}
             {SUPPORT_URL && (
-              <a href={SUPPORT_URL} target="_blank" rel="noopener" className="text-accent font-semibold">
-                ♥ Support Tunely
+              <a href={SUPPORT_URL} target="_blank" rel="noopener" className="text-accent font-medium">
+                Support Tunely
               </a>
             )}
           </nav>

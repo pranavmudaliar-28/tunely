@@ -75,9 +75,9 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
               name={s.channel.name}
               logo={s.channel.logo}
               eager={i === 0}
-              className="border-text/15 rounded-[16px] border shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8),0_0_80px_-10px_color-mix(in_srgb,var(--accent)_45%,transparent)]"
+              className="border-text/15 rounded-[16px] border shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]"
             >
-              <LiveBadge className="top-4 left-4" />
+              <LiveBadge className="top-5 left-5 size-2.5" />
             </ChannelLogo>
           </div>
         ))}
@@ -90,42 +90,34 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
         aria-roledescription="slide"
         aria-label={`${index + 1} of ${count}: ${channel.name}`}
         aria-live={paused ? 'polite' : 'off'}
-        className="relative flex h-full max-w-[680px] flex-col justify-end gap-[18px] px-4 pb-20 sm:px-14 sm:pb-24"
+        className="relative flex h-full max-w-[680px] flex-col justify-end gap-4 px-4 pb-20 sm:px-14 sm:pb-24"
       >
-        <div className="flex flex-wrap items-center gap-2.5">
-          <span className="bg-live flex items-center gap-1.5 rounded-[6px] px-2.5 py-[5px] text-xs font-extrabold tracking-[0.08em] text-[#0B0D12]">
-            <span aria-hidden="true" className="size-[7px] rounded-full bg-[#0B0D12]" />
-            LIVE
-          </span>
-          <span className="text-text-muted text-[13px] font-semibold tracking-[0.08em] uppercase">
-            {slide.label}
-          </span>
+        <div className="text-text-soft flex items-center gap-2 text-sm font-medium">
+          <span aria-hidden="true" className="bg-live size-2 rounded-full" />
+          <span className="sr-only">Live: </span>
+          {slide.label}
         </div>
         {/* h2: the rotating channel name isn't what the home page is about; the page's h1 is in HomeAbout. */}
-        <h2 className="text-5xl leading-none font-extrabold tracking-[-0.03em] sm:text-[72px]">
+        <h2 className="text-5xl leading-none font-semibold tracking-[-0.03em] sm:text-[72px]">
           {channel.name}
         </h2>
-        <p className="text-text-soft flex flex-wrap gap-x-3.5 gap-y-1.5 text-[15px] font-medium">
+        <p className="text-text-soft flex flex-wrap gap-x-3 gap-y-1 text-[15px] tabular-nums">
           {slide.meta}
-          {channel.quality && (
-            <span className="border-text-muted rounded border px-1.5 text-xs leading-5 font-bold">
-              {channel.quality}
-            </span>
-          )}
+          {channel.quality && <span className="text-text-muted">{channel.quality}</span>}
         </p>
-        <div className="flex flex-wrap gap-3 pt-1.5">
+        <div className="flex flex-wrap gap-3 pt-2">
           <Link
             href={`/watch/${encodeURIComponent(channel.id)}`}
             onClick={() => setLineup(slides.map((s) => s.channel))}
             onPointerEnter={preloadHls}
             onFocus={preloadHls}
             onTouchStart={preloadHls}
-            className="bg-text text-bg flex h-[52px] items-center gap-2.5 rounded-[8px] px-7 text-[17px] font-bold no-underline"
+            className="bg-text text-bg flex h-[52px] items-center gap-2.5 rounded-[8px] px-7 text-base font-semibold no-underline"
           >
             <PlayIcon size={20} />
             Watch live
           </Link>
-          <FavoriteButton channel={channel} secondary className="h-[52px] px-6 text-[17px]" />
+          <FavoriteButton channel={channel} secondary className="h-[52px] px-6 text-base" />
         </div>
       </div>
 
@@ -151,7 +143,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
               >
                 <span
                   className={cn(
-                    'block h-1 rounded-full transition-all duration-300',
+                    'block h-1 rounded-full transition-colors duration-300',
                     i === index ? 'bg-accent w-7' : 'bg-text/30 group-hover/dot:bg-text/60 w-3',
                   )}
                 />

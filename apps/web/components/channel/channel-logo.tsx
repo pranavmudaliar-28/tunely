@@ -49,10 +49,10 @@ export function ChannelLogo({
           decoding="async"
           referrerPolicy="no-referrer"
           onError={() => setFailed(true)}
-          className="h-3/5 w-3/5 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.35)] transition-transform duration-300 group-hover:scale-105 motion-reduce:transform-none"
+          className="h-3/5 w-3/5 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.35)]"
         />
       ) : (
-        <span aria-hidden="true" className="text-[34px] font-extrabold">
+        <span aria-hidden="true" className="text-text-soft text-3xl font-semibold">
           {monogram(name)}
         </span>
       )}
@@ -62,32 +62,31 @@ export function ChannelLogo({
 }
 
 const DEAD_LABEL: Record<Exclude<ChannelStatus, 'live'>, string> = {
-  offline: 'OFFLINE',
-  no_stream: 'NO STREAM',
-  closed: 'CLOSED',
+  offline: 'Offline',
+  no_stream: 'No stream',
+  closed: 'Closed',
 };
 
-/** LIVE in red, or a grey label for channels that can't play right now. Stored snapshots may lack a status: treat as live. */
+/**
+ * The on-air light: a small red dot for live channels, a quiet grey label for ones that can't play right now.
+ * Stored snapshots may lack a status: treat as live.
+ */
 export function LiveBadge({ className, status = 'live' }: { className?: string; status?: ChannelStatus }) {
-  const live = status === 'live';
+  if (status === 'live') {
+    return (
+      <span className={cn('bg-live absolute top-3 left-3 size-2 rounded-full', className)}>
+        <span className="sr-only">Live</span>
+      </span>
+    );
+  }
   return (
     <span
       className={cn(
-        'absolute top-2.5 left-2.5 rounded-[5px] px-2 py-[3px] text-[11px] font-extrabold tracking-[0.08em]',
-        live ? 'bg-live text-[#0B0D12]' : 'bg-[#0B0D12E6] text-[#C9D0DD] ring-1 ring-white/15',
+        'absolute top-2 left-2 rounded-[4px] bg-[#0B0D12E6] px-2 py-1 text-[11px] leading-none font-medium text-[#C9D0DD]',
         className,
       )}
     >
-      {live ? 'LIVE' : DEAD_LABEL[status]}
-    </span>
-  );
-}
-
-export function QualityChip({ quality }: { quality: string | null }) {
-  if (!quality) return null;
-  return (
-    <span className="absolute top-2.5 right-2.5 rounded-[5px] bg-[#0B0D12CC] px-[7px] py-[3px] text-[11px] font-bold text-[#F2F4F8]">
-      {quality}
+      {DEAD_LABEL[status]}
     </span>
   );
 }

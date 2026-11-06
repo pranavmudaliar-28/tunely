@@ -83,8 +83,8 @@ export function channelMeta(
     .join(' · ');
 }
 
-/** Stable tint for logo tiles, from the canvas palette. */
-const TINTS = ['#3B82F64D', '#A855F74D', '#22C55E4D', '#F59E0B4D', '#06B6D44D', '#EC48994D'];
+/** Stable neutral step for logo tiles: the logos carry the color, not the tiles. */
+const TINTS = [5, 7, 9, 11].map((p) => `color-mix(in srgb, var(--text) ${p}%, var(--surface))`);
 export function tint(id: string): string {
   let h = 0;
   for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;

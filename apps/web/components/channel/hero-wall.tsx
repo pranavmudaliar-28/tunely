@@ -13,7 +13,7 @@ export function HeroWall({ items }: { items: ChannelSummary[] }) {
       {tiles.map((c, i) => (
         <span
           key={i}
-          className="flex aspect-video items-center justify-center rounded-[8px] text-[26px] font-extrabold text-[#F2F4F8B3]"
+          className="text-text-muted flex aspect-video items-center justify-center rounded-[8px] text-2xl font-semibold"
           style={{ background: tint(c.id + i) }}
         >
           {monogram(c.name)}

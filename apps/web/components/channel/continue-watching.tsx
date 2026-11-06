@@ -14,7 +14,7 @@ export function ContinueWatching() {
   const items = history.slice(0, 12);
   return (
     <section aria-labelledby="continue">
-      <h2 id="continue" className="pb-3.5 text-xl font-bold">
+      <h2 id="continue" className="pb-3 text-xl font-semibold">
         Continue watching
       </h2>
       <Scroller label="Continue watching" list buttonTop={84}>

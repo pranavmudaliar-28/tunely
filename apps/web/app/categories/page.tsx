@@ -2,7 +2,7 @@ import type { Facet } from '@tunely/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
-import { nativeLanguageName, tint } from '@/lib/format';
+import { nativeLanguageName } from '@/lib/format';
 
 export const revalidate = 1800;
 export const metadata: Metadata = {
@@ -23,23 +23,22 @@ function FacetGrid({
 }) {
   if (!items.length) return null;
   return (
-    <section aria-labelledby={`h-${title}`} className="flex flex-col gap-3.5">
-      <h2 id={`h-${title}`} className="text-xl font-bold">
+    <section aria-labelledby={`h-${title}`} className="flex flex-col gap-3">
+      <h2 id={`h-${title}`} className="text-xl font-semibold">
         {title}
       </h2>
-      <ul className="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-3.5">
+      <ul className="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-3">
         {items.map((f) => (
           <li key={f.id}>
             <Link
               href={href(f)}
-              className="text-text flex h-24 flex-col justify-between rounded-[10px] px-4 py-3.5 no-underline"
-              style={{ background: tint(f.id) }}
+              className="text-text bg-surface-raised hover:bg-border flex h-24 flex-col justify-between rounded-[10px] px-4 py-3 no-underline transition-colors"
             >
-              <span className="text-xl font-bold">
+              <span className="text-xl font-semibold">
                 {f.flag ? <span aria-hidden="true">{f.flag} </span> : null}
                 {label?.(f) ?? f.name}
               </span>
-              <span className="text-text-soft text-[13px] font-medium">{f.count} channels</span>
+              <span className="text-text-soft text-[13px] tabular-nums">{f.count} channels</span>
             </Link>
           </li>
         ))}

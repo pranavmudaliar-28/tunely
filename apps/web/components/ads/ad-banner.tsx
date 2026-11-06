@@ -51,7 +51,7 @@ export function AdBanner({ placement, className }: { placement: AdPlacement; cla
 
   return (
     <aside aria-label="Advertisement" className={cn('flex flex-col gap-1', className)}>
-      <span className="text-text-muted text-[11px] tracking-wide uppercase">Advertisement</span>
+      <span className="text-text-muted text-[11px]">Advertisement</span>
       <ins
         // A new <ins> per page: AdSense fills each element once.
         key={pathname}
@@ -95,7 +95,7 @@ function AdsterraBanner({ className }: { className?: string }) {
   if (!pick) return null;
   return (
     <aside ref={box} aria-label="Advertisement" className={cn('flex flex-col items-center gap-1', className)}>
-      <span className="text-text-muted self-start text-[11px] tracking-wide uppercase">Advertisement</span>
+      <span className="text-text-muted self-start text-[11px]">Advertisement</span>
       {/* Same size before and after loading, so the page doesn't jump. */}
       <div style={{ width: pick.w, height: pick.h, maxWidth: '100%' }}>
         {near && (
@@ -110,6 +110,8 @@ function AdsterraBanner({ className }: { className?: string }) {
             // script; it still keeps the ad's globals and document.write out of our page and opens clicks in a new tab.
             sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
             scrolling="no"
+            // Same scheme as the ad's own document, or Chrome paints an empty slot white on our dark page.
+            style={{ colorScheme: 'light' }}
             className="max-w-full border-0"
           />
         )}
@@ -138,7 +140,7 @@ export function AdNative({ className }: { className?: string }) {
   if (!native) return null;
   return (
     <aside ref={box} aria-label="Advertisement" className={cn('flex flex-col gap-1', className)}>
-      <span className="text-text-muted text-[11px] tracking-wide uppercase">Advertisement</span>
+      <span className="text-text-muted text-[11px]">Advertisement</span>
       {/* A fresh container per page: the script fills it once. */}
       <div key={pathname} id={`container-${native.key}`} className="min-h-[160px] w-full" />
     </aside>

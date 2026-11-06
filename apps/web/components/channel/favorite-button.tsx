@@ -42,7 +42,7 @@ export function FavoriteButton({
       aria-pressed={on}
       onClick={() => void toggleFavorite(channel)}
       className={cn(
-        'flex h-12 items-center gap-2 rounded-[8px] px-5 text-[15px] font-bold',
+        'flex h-12 items-center gap-2 rounded-[8px] px-5 text-[15px] font-semibold',
         on
           ? 'bg-surface-raised text-text'
           : secondary
@@ -52,7 +52,7 @@ export function FavoriteButton({
       )}
     >
       <HeartIcon filled={on} size={18} className={on ? 'text-accent' : undefined} />
-      {on ? 'In favorites' : 'Favorites'}
+      {on ? 'In favorites' : 'Favorite'}
     </button>
   );
 }

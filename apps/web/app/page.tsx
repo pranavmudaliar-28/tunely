@@ -11,7 +11,7 @@ import { LazyRail } from '@/components/channel/lazy-rail';
 import { LocalRail } from '@/components/channel/local-rail';
 import { HomeAbout } from '@/components/home-about';
 import { api } from '@/lib/api-client';
-import { channelMeta, countryName, nativeLanguageName, tint } from '@/lib/format';
+import { channelMeta, countryName, nativeLanguageName } from '@/lib/format';
 
 export const revalidate = 300;
 
@@ -175,14 +175,14 @@ export default async function HomePage() {
   if (!featured) {
     return (
       <div className="flex flex-col items-center gap-3 p-16 text-center">
-        <h1 className="text-3xl font-extrabold">Tunely</h1>
+        <h1 className="text-3xl font-semibold">Tunely</h1>
         <p className="text-text-muted max-w-md">
           We&apos;re checking which channels are playing right now. Live channels appear here within a few
           minutes; meanwhile you can browse the full directory.
         </p>
         <Link
           href="/browse"
-          className="bg-text text-bg mt-3 flex h-12 items-center rounded-[8px] px-6 font-bold no-underline"
+          className="bg-text text-bg mt-3 flex h-12 items-center rounded-[8px] px-6 font-semibold no-underline"
         >
           Browse all channels
         </Link>
@@ -225,7 +225,7 @@ export default async function HomePage() {
         )}
         {languages.length > 0 && (
           <section aria-labelledby="langs">
-            <h2 id="langs" className="pb-3.5 text-xl font-bold">
+            <h2 id="langs" className="pb-3 text-xl font-semibold">
               Watch in your language
             </h2>
             <Scroller label="Languages" list buttonTop={48}>
@@ -233,11 +233,10 @@ export default async function HomePage() {
                 <div role="listitem" key={l.id} className="shrink-0 snap-start">
                   <Link
                     href={`/language/${l.id}`}
-                    className="text-text flex h-24 w-[168px] flex-col justify-between rounded-[10px] px-4 py-3.5 no-underline"
-                    style={{ background: tint(l.id) }}
+                    className="text-text bg-surface-raised hover:bg-border flex h-24 w-[168px] flex-col justify-between rounded-[10px] px-4 py-3 no-underline transition-colors"
                   >
-                    <span className="text-2xl font-bold">{nativeLanguageName(l.id, l.name)}</span>
-                    <span className="text-text-soft text-[13px] font-medium">
+                    <span className="text-2xl font-semibold">{nativeLanguageName(l.id, l.name)}</span>
+                    <span className="text-text-soft text-[13px] tabular-nums">
                       {l.name} · {l.count}
                     </span>
                   </Link>

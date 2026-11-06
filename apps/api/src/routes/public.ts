@@ -25,6 +25,10 @@ const ErrorSchema = z.object({ error: z.string() });
 /** Escaped `%term%` for ilike. */
 const likePattern = (term: string) => `%${term.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
 
+/** A real text match on name, alt names or network (search filters on it, then ranks it above trigram look-alikes). */
+const textMatch = (like: string) =>
+  sql`(${pc.name} ilike ${like} or array_to_string(${pc.altNames}, ' ') ilike ${like} or coalesce(${pc.network}, '') ilike ${like})`;
+
 /**
  * The filters shared by the channel list and the browse counts, so the two always agree. `omit` leaves one out: each
  * facet is counted with every filter except its own, so viewers can see what switching would give.
@@ -36,10 +40,7 @@ export function channelWhere(f: FacetsQuery, omit?: 'country' | 'category' | 'la
   if (f.language && omit !== 'language') where.push(arrayContains(pc.languages, [f.language]));
   if (f.status && omit !== 'status') where.push(eq(pc.status, f.status));
   if (f.q) {
-    const like = likePattern(f.q);
-    where.push(
-      sql`(${pc.name} ilike ${like} or ${pc.name} % ${f.q} or array_to_string(${pc.altNames}, ' ') ilike ${like} or coalesce(${pc.network}, '') ilike ${like})`,
-    );
+    where.push(sql`(${textMatch(likePattern(f.q))} or ${pc.name} % ${f.q})`);
   }
   return where;
 }
@@ -100,13 +101,12 @@ export const publicRoutes =
         const cursor = decodeCursor(q.cursor);
         if (cursor === undefined) return reply.code(400).send({ error: 'invalid cursor' });
 
-        return cached(redis, cacheKey(req.url), reply, async () => {
+        return cached(redis, cacheKey('/v1/channels', q), reply, async () => {
           const where = channelWhere(q);
           if (q.ids) where.push(inArray(pc.id, q.ids.split(',').slice(0, 50)));
 
           if (q.q) {
             const term = q.q;
-            const like = likePattern(term);
             const offset = cursor && 'o' in cursor ? cursor.o : 0;
             const rows = await db
               .select()
@@ -116,10 +116,7 @@ export const publicRoutes =
                 // Names starting with the term first (even if dead: that's the channel they asked for),
                 // then other real matches, then live before dead, then fuzzy similarity.
                 desc(sql`(${pc.name} ilike ${term + '%'})`),
-                // Real text matches (name, alt name, network) before trigram look-alikes.
-                desc(
-                  sql`(${pc.name} ilike ${like} or array_to_string(${pc.altNames}, ' ') ilike ${like} or coalesce(${pc.network}, '') ilike ${like})`,
-                ),
+                desc(textMatch(likePattern(term))),
                 asc(pc.statusRank),
                 desc(sql`similarity(${pc.name}, ${term})`),
                 asc(pc.id),
@@ -191,7 +188,7 @@ export const publicRoutes =
         },
       },
       async (req, reply) => {
-        const result = await cached(redis, cacheKey(req.url), reply, async () => {
+        const result = await cached(redis, cacheKey('/v1/channels/:id', req.params), reply, async () => {
           const [row] = await db.select().from(pc).where(eq(pc.id, req.params.id));
           if (!row) return null;
           const streams = await db
@@ -248,25 +245,30 @@ export const publicRoutes =
         },
       },
       async (req, reply) => {
-        const result = await cached(redis, cacheKey(req.url), reply, async () => {
-          const [row] = await db.select().from(pc).where(eq(pc.id, req.params.id));
-          if (!row) return null;
-          const sameCountry = eq(pc.countryCode, row.countryCode);
-          const sameCategory = sql`${pc.categories} && ${sql.param(row.categories)}::text[]`;
-          const rows = await db
-            .select()
-            .from(pc)
-            // Live only: related channels double as the player's channel up/down list.
-            .where(and(ne(pc.id, row.id), eq(pc.status, 'live'), or(sameCountry, sameCategory)))
-            .orderBy(
-              desc(sql`(${sameCountry} and ${sameCategory})`),
-              desc(sameCountry),
-              desc(pc.bestScore),
-              asc(pc.name),
-            )
-            .limit(req.query.limit);
-          return { items: rows.map(toSummary), nextCursor: null };
-        });
+        const result = await cached(
+          redis,
+          cacheKey('/v1/channels/:id/related', { ...req.params, ...req.query }),
+          reply,
+          async () => {
+            const [row] = await db.select().from(pc).where(eq(pc.id, req.params.id));
+            if (!row) return null;
+            const sameCountry = eq(pc.countryCode, row.countryCode);
+            const sameCategory = sql`${pc.categories} && ${sql.param(row.categories)}::text[]`;
+            const rows = await db
+              .select()
+              .from(pc)
+              // Live only: related channels double as the player's channel up/down list.
+              .where(and(ne(pc.id, row.id), eq(pc.status, 'live'), or(sameCountry, sameCategory)))
+              .orderBy(
+                desc(sql`(${sameCountry} and ${sameCategory})`),
+                desc(sameCountry),
+                desc(pc.bestScore),
+                asc(pc.name),
+              )
+              .limit(req.query.limit);
+            return { items: rows.map(toSummary), nextCursor: null };
+          },
+        );
         if (!result) return reply.code(404).send({ error: 'not found' });
         return result;
       },
@@ -283,7 +285,7 @@ export const publicRoutes =
         },
       },
       async (req, reply) =>
-        cached(redis, cacheKey(req.url), reply, async () => {
+        cached(redis, cacheKey('/v1/facets', req.query), reply, async () => {
           const f = req.query;
           const count = sql<number>`count(*)::int`;
           const unnested = (
@@ -319,8 +321,8 @@ export const publicRoutes =
       app.get(
         path,
         { schema: { tags: ['facets'], summary, response: { 200: FacetListSchema } } },
-        async (req, reply) =>
-          cached(redis, cacheKey(req.url), reply, async () => {
+        async (_req, reply) =>
+          cached(redis, cacheKey(path), reply, async () => {
             const rows = await db.execute<{ id: string; name: string; count: number; flag?: string | null }>(
               query,
             );
@@ -359,8 +361,8 @@ export const publicRoutes =
           response: { 200: TrendingSchema },
         },
       },
-      async (req, reply) =>
-        cached(redis, cacheKey(req.url), reply, async () => {
+      async (_req, reply) =>
+        cached(redis, cacheKey('/v1/trending'), reply, async () => {
           const rows = await db.execute<Row & { viewers: number }>(sql`
             select p.id, p.name, p.country_code as "countryCode", p.categories, p.languages, p.logo_url as "logoUrl",
                    p.best_quality as "bestQuality", p.best_height as "bestHeight", p.status, count(distinct r.anon_session_hash)::int as viewers

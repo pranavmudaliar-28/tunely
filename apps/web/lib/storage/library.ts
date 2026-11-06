@@ -1,7 +1,7 @@
 'use client';
 
 import type { ChannelSummary } from '@tunely/shared';
-import { createStore, get, set, type UseStore } from 'idb-keyval';
+import { createStore, get, update, type UseStore } from 'idb-keyval';
 import { useSyncExternalStore } from 'react';
 
 // Guest favorites and history live in this browser only (IndexedDB). We keep a snapshot of each
@@ -63,12 +63,19 @@ const validFolders = (value: unknown): Folder[] =>
           f.channelIds.every((c: unknown) => typeof c === 'string'),
       )
     : [];
+const list = <T>(value: unknown): T[] => (Array.isArray(value) ? value : []);
+const READ: { [K in keyof Library]: (stored: unknown) => Library[K] } = {
+  favorites: list,
+  history: list,
+  folders: validFolders,
+};
 
 let idb: UseStore | null = null;
 const store = () => (idb ??= createStore('tunely', 'library'));
 
 let state: Library = EMPTY;
 let loaded: Promise<void> | null = null;
+let watching = false;
 const listeners = new Set<() => void>();
 
 function emit(next: Library) {
@@ -77,6 +84,15 @@ function emit(next: Library) {
 }
 
 export function loadLibrary(): Promise<void> {
+  // Another tab may have changed the library while this one was in the background: read it again on return.
+  if (!watching && typeof document !== 'undefined') {
+    watching = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') return;
+      loaded = null;
+      void loadLibrary();
+    });
+  }
   loaded ??= (async () => {
     try {
       const [favorites, history, folders] = await Promise.all([
@@ -84,7 +100,11 @@ export function loadLibrary(): Promise<void> {
         get('history', store()),
         get('folders', store()),
       ]);
-      emit({ favorites: favorites ?? [], history: history ?? [], folders: validFolders(folders) });
+      emit({
+        favorites: READ.favorites(favorites),
+        history: READ.history(history),
+        folders: READ.folders(folders),
+      });
     } catch {
       // Private mode or blocked storage: the app still works, lists just stay empty.
     }
@@ -92,27 +112,33 @@ export function loadLibrary(): Promise<void> {
   return loaded;
 }
 
-async function persist(key: keyof Library, value: Library[keyof Library]) {
-  emit({ ...state, [key]: value });
+/**
+ * Apply `fn` to what is stored, read and written in one transaction, so a change made in another tab is never
+ * overwritten by this tab's older copy. Returns the new value.
+ */
+async function change<K extends keyof Library>(key: K, fn: (current: Library[K]) => Library[K]) {
+  await loadLibrary();
+  let next: Library[K] | undefined;
   try {
-    await set(key, value, store());
+    await update(key, (stored) => (next = fn(READ[key](stored))), store());
   } catch {
-    // See loadLibrary.
+    // Storage blocked (see loadLibrary): the change applies to this page view only.
   }
+  next ??= fn(state[key]);
+  emit({ ...state, [key]: next });
+  return next;
 }
 
 export async function toggleFavorite(channel: ChannelSummary) {
-  await loadLibrary();
-  const exists = state.favorites.some((c) => c.id === channel.id);
-  await persist(
-    'favorites',
-    exists ? state.favorites.filter((c) => c.id !== channel.id) : [snapshot(channel), ...state.favorites],
+  const favorites = await change('favorites', (list) =>
+    list.some((c) => c.id === channel.id)
+      ? list.filter((c) => c.id !== channel.id)
+      : [snapshot(channel), ...list],
   );
   // A folder only groups favorites, so an un-favorited channel leaves every folder.
-  if (exists && state.folders.some((f) => f.channelIds.includes(channel.id))) {
-    await persist(
-      'folders',
-      state.folders.map((f) => ({ ...f, channelIds: f.channelIds.filter((id) => id !== channel.id) })),
+  if (!favorites.some((c) => c.id === channel.id)) {
+    await change('folders', (folders) =>
+      folders.map((f) => ({ ...f, channelIds: f.channelIds.filter((id) => id !== channel.id) })),
     );
   }
 }
@@ -122,43 +148,36 @@ const sameName = (a: string, b: string) => a.toLocaleLowerCase() === b.toLocaleL
 
 /** Creates a folder and returns its id; a name already in use returns that folder. Null if empty or at the limit. */
 export async function createFolder(name: string): Promise<string | null> {
-  await loadLibrary();
   const clean = cleanName(name);
   if (!clean) return null;
-  const existing = state.folders.find((f) => sameName(f.name, clean));
-  if (existing) return existing.id;
-  if (state.folders.length >= FOLDER_LIMIT) return null;
-  const folder: Folder = { id: crypto.randomUUID(), name: clean, channelIds: [] };
-  await persist('folders', [...state.folders, folder]);
-  return folder.id;
+  const folders = await change('folders', (folders) =>
+    folders.some((f) => sameName(f.name, clean)) || folders.length >= FOLDER_LIMIT
+      ? folders
+      : [...folders, { id: crypto.randomUUID(), name: clean, channelIds: [] }],
+  );
+  return folders.find((f) => sameName(f.name, clean))?.id ?? null;
 }
 
 /** False if the name is empty or taken by another folder. */
 export async function renameFolder(id: string, name: string): Promise<boolean> {
-  await loadLibrary();
   const clean = cleanName(name);
-  if (!clean || state.folders.some((f) => f.id !== id && sameName(f.name, clean))) return false;
-  await persist(
-    'folders',
-    state.folders.map((f) => (f.id === id ? { ...f, name: clean } : f)),
+  if (!clean) return false;
+  const folders = await change('folders', (folders) =>
+    folders.some((f) => f.id !== id && sameName(f.name, clean))
+      ? folders
+      : folders.map((f) => (f.id === id ? { ...f, name: clean } : f)),
   );
-  return true;
+  return folders.some((f) => f.id === id && f.name === clean);
 }
 
 /** The channels stay in favorites. */
 export async function deleteFolder(id: string) {
-  await loadLibrary();
-  await persist(
-    'folders',
-    state.folders.filter((f) => f.id !== id),
-  );
+  await change('folders', (folders) => folders.filter((f) => f.id !== id));
 }
 
 export async function toggleInFolder(folderId: string, channelId: string) {
-  await loadLibrary();
-  await persist(
-    'folders',
-    state.folders.map((f) =>
+  await change('folders', (folders) =>
+    folders.map((f) =>
       f.id !== folderId
         ? f
         : {
@@ -173,17 +192,15 @@ export async function toggleInFolder(folderId: string, channelId: string) {
 
 /** Record a watch; `seconds` is added to the running total. Keeps the newest HISTORY_LIMIT entries. */
 export async function recordWatch(channel: ChannelSummary, seconds = 0, now = Date.now()) {
-  await loadLibrary();
-  const prev = state.history.find((h) => h.channel.id === channel.id);
-  const entry: HistoryEntry = {
-    channel: snapshot(channel),
-    lastWatchedAt: now,
-    watchSeconds: (prev?.watchSeconds ?? 0) + Math.round(seconds),
-  };
-  await persist(
-    'history',
-    [entry, ...state.history.filter((h) => h.channel.id !== channel.id)].slice(0, HISTORY_LIMIT),
-  );
+  await change('history', (history) => {
+    const prev = history.find((h) => h.channel.id === channel.id);
+    const entry: HistoryEntry = {
+      channel: snapshot(channel),
+      lastWatchedAt: now,
+      watchSeconds: (prev?.watchSeconds ?? 0) + Math.round(seconds),
+    };
+    return [entry, ...history.filter((h) => h.channel.id !== channel.id)].slice(0, HISTORY_LIMIT);
+  });
 }
 
 function subscribe(listener: () => void) {

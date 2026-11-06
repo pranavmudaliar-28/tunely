@@ -164,6 +164,16 @@ describe.skipIf(!testDbUrl)('public API', () => {
     expect(second.body).toEqual(first.body);
   });
 
+  test('unknown query parameters reuse the cache entry instead of filling Redis', async () => {
+    expect((await get('/v1/channels?country=IN&junk=1')).headers['x-cache']).toBe('miss');
+    expect((await get('/v1/channels?junk=2&country=IN&v=6')).headers['x-cache']).toBe('hit');
+    expect((await get('/v1/countries?junk=3')).headers['x-cache']).toBe('miss');
+    expect((await get('/v1/countries?junk=4')).headers['x-cache']).toBe('hit');
+    expect((await get('/v1/channels/DDNews.in?junk=5')).headers['x-cache']).toBe('miss');
+    expect((await get('/v1/channels/DDNews.in?junk=6')).headers['x-cache']).toBe('hit');
+    expect(await redis.keys('api:*')).toHaveLength(3);
+  });
+
   test('channel detail lists every stream, verified ones first', async () => {
     const { status, body } = await get('/v1/channels/DDNews.in');
     expect(status).toBe(200);

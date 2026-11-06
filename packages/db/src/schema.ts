@@ -41,9 +41,9 @@ export const channels = pgTable(
     replacedBy: text('replaced_by'),
     syncedAt: timestamp('synced_at', { withTimezone: true }).notNull().defaultNow(),
   },
+  // Search runs on public_channels (its own trigram index); these serve the curate CLI's filters.
   (t) => [
     index('channels_categories_gin').using('gin', t.categories),
-    index('channels_name_trgm').using('gin', sql`${t.name} gin_trgm_ops`),
     index('channels_country_idx').on(t.countryCode),
   ],
 );
@@ -69,10 +69,8 @@ export const feeds = pgTable(
       .default(sql`'{}'`),
     format: text('format'),
   },
-  (t) => [
-    primaryKey({ columns: [t.channelId, t.feedId] }),
-    index('feeds_languages_gin').using('gin', t.languages),
-  ],
+  // public_channels reads a channel's languages by channel_id (the primary key), never by language.
+  (t) => [primaryKey({ columns: [t.channelId, t.feedId] })],
 );
 
 export const streams = pgTable(

@@ -49,6 +49,9 @@ pnpm --filter @tunely/worker curate approve --country IN --category news
 pnpm --filter @tunely/worker curate approve --id DWNews.de --id France24.fr
 pnpm --filter @tunely/worker curate hide --id Foo.us --reason "pay-tv"
 curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" localhost:4000/v1/admin/sync   # enqueue a sync
+# Takedown in production (also clears the API cache, which the CLI can't reach on Render):
+curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" -H "content-type: application/json" \
+  -d '{"ids":["Foo.us"],"status":"removed","reason":"DMCA"}' https://<api-host>/v1/admin/curate
 ```
 
 The worker also runs the sync daily at 02:30 UTC. New channels land as `pending`; nothing is public until approved.

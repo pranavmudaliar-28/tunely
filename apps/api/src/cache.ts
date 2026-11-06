@@ -14,12 +14,30 @@ export const CACHE_TTL_S = 300;
 
 export const PUBLIC_CACHE_CONTROL = 'public, max-age=60, s-maxage=300, stale-while-revalidate=3600';
 
-/** Stable cache key: path plus sorted query, so ?a=1&b=2 and ?b=2&a=1 share an entry. */
-export function cacheKey(url: string): string {
-  const u = new URL(url, 'http://x');
-  u.searchParams.sort();
-  u.searchParams.delete('v'); // the web's cache-busting param; the version is already in the key
-  return `api:${API_DATA_VERSION}:${u.pathname}?${u.searchParams.toString()}`;
+/**
+ * Cache key from the route and its validated values, never the raw URL: unknown parameters (and the web's `v`
+ * cache-buster) must not mint new entries in the Redis the job queue shares. Sorted, so order doesn't matter.
+ */
+export function cacheKey(route: string, values: object = {}): string {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(values).sort(([a], [b]) => (a < b ? -1 : 1)))
+    if (v !== undefined) params.set(k, String(v));
+  return `api:${API_DATA_VERSION}:${route}?${params}`;
+}
+
+/** Drop every cached response (after a takedown). Returns false when Redis can't be reached. */
+export async function clearCache(redis: Redis): Promise<boolean> {
+  try {
+    let cursor = '0';
+    do {
+      const [next, keys] = await redis.scan(cursor, 'MATCH', 'api:*', 'COUNT', 500);
+      if (keys.length) await redis.del(...keys);
+      cursor = next;
+    } while (cursor !== '0');
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Serve from Redis when present, else compute and store for 5 min. Redis failures fall through to compute. */

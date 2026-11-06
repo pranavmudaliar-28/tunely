@@ -107,3 +107,10 @@ Choices made while building, newest last.
   - **No red glow behind the hero logo; weights 400 to 600** (no 700 or 800 on home); no hover lift or logo zoom on cards (the tile's edge lights up instead); no uppercase tracked labels.
   - **Empty Adsterra slots no longer show as white boxes.** Chrome paints an iframe white when its color scheme differs from the page's, so the banner iframe declares `color-scheme: light` like the ad document inside it.
   - **The favorite button says "Favorite"**, not "Favorites", which read like a link to the Favorites page.
+- **Second audit fixes (6 Nov 2026).**
+  - **The browser library changes what is stored, not this tab's copy.** Each change to favorites, folders or history runs inside `idb-keyval`'s `update` (read and write in one transaction), and a tab re-reads the library when it becomes visible again. Before, a tab wrote back its own older copy, so with Tunely open in two tabs a favorite or folder added in one vanished on the next change in the other.
+  - **`POST /v1/admin/curate` takes a channel down from production**, token-protected like `/v1/admin/sync`: it upserts the curation status (so a takedown for a not-yet-synced id still holds), refreshes `public_channels` and deletes every `api:*` key. The curate CLI can't clear that cache on Render, whose Redis only accepts Render services. The website's own page cache (up to 5 min) still applies.
+  - **API cache keys come from the route and its validated values**, not the raw URL, so unknown parameters can't mint new entries in the Redis BullMQ shares (it runs `noeviction`).
+  - **The website sends anti-framing and basic security headers** (`frame-ancestors 'none'`, `X-Frame-Options`, nosniff, Referrer-Policy, Permissions-Policy, HSTS). Tested: the Adsterra banner's `srcdoc` iframe still runs under them. The full CSP stays in Phase 6.
+  - **Dropped two indexes no query used** (`channels_name_trgm`, `feeds_languages_gin`): search runs on `public_channels`, which has its own trigram index.
+  - **`apps/web/AGENTS.md` is committed**: `next dev` writes it on every run, so leaving it out only kept the tree dirty.

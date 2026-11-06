@@ -78,6 +78,23 @@ test('folders survive a reload, and there is a limit', async () => {
   expect(await createFolder('One too many')).toBeNull();
 });
 
+test("another tab's changes are kept, not overwritten by this tab's older copy", async () => {
+  await toggleFavorite(channel('a'));
+  const news = (await createFolder('News'))!;
+  // Another tab favorites b and makes a folder straight in storage; this tab's copy has neither.
+  const db = createStore('tunely', 'library');
+  await set('favorites', [channel('b'), channel('a')], db);
+  await set('folders', [...library().folders, { id: 'other', name: 'Kids', channelIds: ['b'] }], db);
+
+  await toggleFavorite(channel('c'));
+  await toggleInFolder(news, 'c');
+  expect(library().favorites.map((c) => c.id)).toEqual(['c', 'b', 'a']);
+  expect(library().folders.map((f) => [f.name, f.channelIds])).toEqual([
+    ['News', ['c']],
+    ['Kids', ['b']],
+  ]);
+});
+
 test('malformed stored folders are ignored', async () => {
   await set(
     'folders',

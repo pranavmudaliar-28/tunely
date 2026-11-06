@@ -28,6 +28,26 @@ const GuideRow = z.object({
   site_id: z.string().min(3).max(300),
 });
 
+/**
+ * The i.mjh.nz rows of guides.json, found by a regex instead of parsing the whole file: JSON.parse builds all 180k
+ * entries (a reviver only runs afterwards) and needs ~150 MB of heap, measured 6 Nov, too much beside the API in
+ * the 512 MB instance. Each match is still parsed and validated; an entry with a brace in a value is just skipped.
+ */
+export function guideRowsFrom(text: string) {
+  const rows: z.infer<typeof GuideRow>[] = [];
+  for (const [obj] of text.matchAll(/\{[^{}]*"site"\s*:\s*"i\.mjh\.nz"[^{}]*\}/g)) {
+    let value: unknown;
+    try {
+      value = JSON.parse(obj);
+    } catch {
+      continue;
+    }
+    const row = GuideRow.safeParse(value);
+    if (row.success && splitSiteId(row.data.site_id)) rows.push(row.data);
+  }
+  return rows;
+}
+
 /** Refresh which i.mjh.nz listing each channel has, at most once a day. Keeps the old map if upstream looks broken. */
 export async function refreshGuideSources(db: Db, redis: Redis): Promise<number | null> {
   if (await redis.get(SOURCES_FRESH_KEY)) return null;
@@ -36,13 +56,7 @@ export async function refreshGuideSources(db: Db, redis: Redis): Promise<number 
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
   if (res.status !== 200) throw new Error(`guides.json: HTTP ${res.status}`);
-  // Drop other sites while parsing, so 180k objects never sit in memory at once.
-  const parsed: unknown = JSON.parse(res.body.toString('utf8'), (_k, v: unknown) =>
-    v && typeof v === 'object' && !Array.isArray(v) && 'site' in v && v.site !== GUIDE_SITE ? undefined : v,
-  );
-  const rows = (Array.isArray(parsed) ? parsed : [])
-    .map((r) => GuideRow.safeParse(r))
-    .flatMap((r) => (r.success && splitSiteId(r.data.site_id) ? [r.data] : []));
+  const rows = guideRowsFrom(res.body.toString('utf8'));
   if (rows.length < 100)
     throw new Error(`guides.json: only ${rows.length} ${GUIDE_SITE} listings, keeping the old map`);
   await db.transaction(async (tx) => {

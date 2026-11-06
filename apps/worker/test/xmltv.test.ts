@@ -1,5 +1,22 @@
 import { expect, test } from 'vitest';
 import { parseProgrammes, pickFiles, splitSiteId, xmltvTime, xmlText } from '../src/guide/xmltv';
+import { guideRowsFrom } from '../src/jobs/guide';
+
+test('guideRowsFrom keeps valid i.mjh.nz rows of guides.json and nothing else', () => {
+  const json = JSON.stringify([
+    { channel: 'A.us', feed: null, site: 'i.mjh.nz', site_id: 'Plex/us#a1', site_name: 'A', lang: 'en' },
+    { channel: 'B.in', feed: null, site: 'tataplay.com', site_id: '123', site_name: 'B', lang: 'hi' },
+    { channel: 'C.us', feed: 'HD', site: 'i.mjh.nz', site_id: '../etc#x', site_name: 'C', lang: 'en' },
+    { channel: 'D.us', feed: null, site: 'i.mjh.nz', site_id: 'Roku/all#d', site_name: 'D {HD}', lang: 'en' },
+    { channel: 'E.us', site: 'i.mjh.nz', site_id: 'Roku/all#e' },
+  ]);
+  expect(guideRowsFrom(json)).toEqual([
+    { channel: 'A.us', site: 'i.mjh.nz', site_id: 'Plex/us#a1' },
+    { channel: 'E.us', site: 'i.mjh.nz', site_id: 'Roku/all#e' },
+  ]);
+  expect(guideRowsFrom(json.replaceAll('":', '": '))).toHaveLength(2);
+  expect(guideRowsFrom('not json {"site":"i.mjh.nz", oops}')).toEqual([]);
+});
 
 test('xmltvTime reads XMLTV timestamps with or without an offset', () => {
   expect(xmltvTime('20261105232643 +0000')?.toISOString()).toBe('2026-11-05T23:26:43.000Z');

@@ -39,8 +39,20 @@ if (first?.count === 0) {
   await catalogQueue.add(JOB.catalogSync, {}, { jobId: 'initial-sync', removeOnComplete: true });
 }
 // No guide yet (first deploy with the guide): fetch it now rather than at the next quarter past.
+// Retries: during a deploy the old instance's worker can take the job, not know it, and fail it.
 const [guide] = (await db.execute<{ n: number }>(sql`select count(*)::int as n from programmes`)).rows;
-if (guide?.n === 0) await catalogQueue.add(JOB.guide, {}, { jobId: 'initial-guide', removeOnComplete: true });
+if (guide?.n === 0)
+  await catalogQueue.add(
+    JOB.guide,
+    {},
+    {
+      jobId: 'initial-guide',
+      attempts: 3,
+      backoff: { type: 'fixed', delay: 5 * 60_000 },
+      removeOnComplete: true,
+      removeOnFail: true,
+    },
+  );
 await healthQueue.upsertJobScheduler(
   'health-batch',
   { every: config.healthBatchEveryMin * 60_000 },

@@ -47,6 +47,7 @@ describe.skipIf(!testDbUrl)('public API', () => {
       logo: 'https://example.com/dd.png',
       quality: '720p',
       status: 'live',
+      onAir: [],
     });
   });
 
@@ -224,6 +225,14 @@ describe.skipIf(!testDbUrl)('public API', () => {
       expect(body.schedule[0]).toMatchObject({ description: 'Headlines.' });
       expect(Date.parse(body.schedule[0].stop)).toBeGreaterThan(Date.now());
       expect((await get('/v1/channels/DWNews.de')).body.schedule).toEqual([]);
+      // Lists carry the same programmes, without descriptions, for "Now" on cards.
+      const list = (await get('/v1/channels?ids=DDNews.in,DWNews.de&limit=7')).body.items as {
+        id: string;
+        onAir: { title: string; description?: string }[];
+      }[];
+      const onAir = Object.fromEntries(list.map((c) => [c.id, c.onAir.map((p) => p.title)]));
+      expect(onAir).toEqual({ 'DDNews.in': ['On now', 'Later'], 'DWNews.de': [] });
+      expect(list[0]!.onAir[0]).not.toHaveProperty('description');
     } finally {
       await db.execute(sql`delete from programmes`);
     }

@@ -13,6 +13,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${site}/`, changeFrequency: 'hourly', priority: 1 },
     { url: `${site}/browse`, changeFrequency: 'daily', priority: 0.8 },
     { url: `${site}/categories`, changeFrequency: 'daily', priority: 0.6 },
+    { url: `${site}/guide`, changeFrequency: 'hourly', priority: 0.6 },
     ...FOOTER_PAGES.map((p) => ({
       url: `${site}${p.href}`,
       changeFrequency: 'monthly' as const,

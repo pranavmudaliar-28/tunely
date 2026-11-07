@@ -49,6 +49,7 @@ const snapshot = ({
   logo,
   quality,
   status,
+  onAir: [], // programmes go stale; lists bring fresh ones
 });
 const EMPTY: Library = { favorites: [], history: [], folders: [] };
 

@@ -41,6 +41,12 @@ export const GridIcon = (p: P) => (
     <rect x="13" y="13" width="7" height="7" rx="1.5" />
   </svg>
 );
+export const GuideIcon = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="3.5" y="5" width="17" height="15" rx="2" />
+    <path d="M3.5 10h17M8 3v4M16 3v4M7.5 14h4M7.5 17h7" />
+  </svg>
+);
 export const HeartIcon = ({ filled, ...p }: P & { filled?: boolean }) => (
   <svg {...base(p)} fill={filled ? 'currentColor' : 'none'}>
     <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />

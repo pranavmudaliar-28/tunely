@@ -96,6 +96,9 @@ export const api = {
     init: RequestInit & { next?: { revalidate?: number } } = { next: { revalidate: LIST_REVALIDATE } },
   ): Promise<Facets> =>
     getJson(channelsPath({ country, category, language, status, q }, '/v1/facets'), FacetsSchema, init),
+  /** Live channels with a programme on now (each with its next ones). */
+  guide: (init = { next: { revalidate: 300 } }): Promise<ChannelList['items']> =>
+    getJson('/v1/guide', ChannelListSchema, init).then((r) => r.items),
   trending: (init = { next: { revalidate: 300 } }): Promise<Trending['items']> =>
     getJson('/v1/trending', TrendingSchema, init).then((r) => r.items),
 };

@@ -28,6 +28,7 @@ const channel = (id: string): ChannelSummary => ({
   logo: null,
   quality: null,
   status: 'live',
+  onAir: [],
 });
 const library = () => renderHook(() => useLibrary()).result.current;
 

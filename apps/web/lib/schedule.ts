@@ -10,7 +10,7 @@ export interface Slot {
 }
 
 /** The programme on at `now` and the one after it (either may be missing). */
-export function nowAndNext(schedule: Slot[], now: number): { current?: Slot; next?: Slot } {
+export function nowAndNext<T extends Pick<Slot, 'start' | 'stop'>>(schedule: T[], now: number): { current?: T; next?: T } {
   const at = (s: string) => Date.parse(s);
   const current = schedule.find((p) => at(p.start) <= now && at(p.stop) > now);
   const next = schedule.find((p) => p !== current && at(p.start) > now);

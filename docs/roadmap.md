@@ -52,7 +52,7 @@ From the feature review of 6 Nov 2026. Each item builds on what Tunely already d
 
 ## Phase 3: knows what's on, everywhere (started 6 Nov 2026)
 
-Done: **H1 Now & Next on watch pages**, from i.mjh.nz only (owner decision: no scraping), about 300 live channels. Still to do for H1: "Now" on channel cards and in search.
+Done: **H1 Now & Next** on watch pages, cards and search, and the `/guide` page, from i.mjh.nz (about 300 live channels). **F4** calendar reminders (no events page yet: the guide data has no real fixtures). The owner asked to build everything else on 7 Nov 2026.
 
 | ID  | Feature                                                                      | Size |
 | --- | ---------------------------------------------------------------------------- | ---- |

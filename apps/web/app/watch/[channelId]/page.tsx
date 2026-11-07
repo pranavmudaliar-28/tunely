@@ -94,7 +94,7 @@ export default async function WatchPage({ params }: Props) {
             )}
           </p>
           {reliability && <p className="text-text-muted text-[13px]">{reliability}</p>}
-          <NowNext schedule={channel.schedule} />
+          <NowNext schedule={channel.schedule} channel={{ id: channel.id, name: channel.name }} />
           <p className="text-text-soft max-w-[720px] text-[15px] leading-relaxed">
             {channelAbout(channel, languageNames, categoryNames)}
           </p>

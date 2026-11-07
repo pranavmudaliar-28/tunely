@@ -8,6 +8,7 @@ import { usePlayerStore } from '@/lib/player/store';
 import { cn } from '@/lib/utils';
 import { ChannelLogo, LiveBadge } from './channel-logo';
 import { FavoriteButton } from './favorite-button';
+import { OnNow } from './now-next';
 
 export interface CardProps {
   channel: ChannelSummary;
@@ -59,7 +60,10 @@ export function ChannelCard({ channel, lineup, meta, variant = 'rail', eager }: 
           <span className="truncate text-[15px] font-medium">{channel.name}</span>
           {/* The quality never truncates; the end of the subtitle gives way instead. */}
           <span className="text-text-muted flex gap-1 text-[13px]">
-            <span className="truncate">{subtitle}</span>
+            <span className="truncate">
+              {/* Cached lists and saved favorites may predate onAir. */}
+              {channel.onAir?.length ? <OnNow onAir={channel.onAir} fallback={subtitle} /> : subtitle}
+            </span>
             {/* Grid cards are too narrow for country, language and quality; the language matters more there. */}
             {live && channel.quality && variant === 'rail' && (
               <span className="shrink-0 tabular-nums">· {channel.quality}</span>

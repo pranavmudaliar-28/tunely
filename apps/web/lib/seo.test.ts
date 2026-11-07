@@ -27,6 +27,7 @@ const channel: Channel = {
   replacedBy: null,
   reliability: null,
   schedule: [],
+  onAir: [],
 };
 
 describe('channelAbout', () => {

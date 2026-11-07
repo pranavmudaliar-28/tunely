@@ -55,7 +55,27 @@ const toSummary = (r: Row): ChannelSummary => ({
   logo: r.logoUrl,
   quality: r.bestQuality ?? (r.bestHeight ? `${r.bestHeight}p` : null),
   status: r.status,
+  onAir: [],
 });
+
+/** Adds each channel's next 3 programmes not yet ended, in one query for the whole page. */
+async function withOnAir<T extends ChannelSummary>(db: Deps['db'], items: T[]): Promise<T[]> {
+  if (!items.length) return items;
+  const { rows } = await db.execute<{ channel_id: string; title: string; start: Date | string; stop: Date | string }>(sql`
+    select channel_id, title, start, stop from (
+      select channel_id, title, start, stop, row_number() over (partition by channel_id order by start) as n
+      from programmes
+      where channel_id in (select jsonb_array_elements_text(${JSON.stringify(items.map((i) => i.id))}::jsonb))
+        and stop > now()
+    ) p where n <= 3 order by channel_id, start`);
+  const byChannel = new Map<string, ChannelSummary['onAir']>();
+  for (const r of rows) {
+    const list = byChannel.get(r.channel_id) ?? [];
+    list.push({ title: r.title, start: new Date(r.start).toISOString(), stop: new Date(r.stop).toISOString() });
+    byChannel.set(r.channel_id, list);
+  }
+  return items.map((i) => ({ ...i, onAir: byChannel.get(i.id) ?? [] }));
+}
 
 // Cursor: keyset on (status rank, name, id) for browsing, so live channels come first; offset for
 // search, which is ordered by relevance.
@@ -124,7 +144,7 @@ export const publicRoutes =
               .limit(q.limit + 1)
               .offset(offset);
             return {
-              items: rows.slice(0, q.limit).map(toSummary),
+              items: await withOnAir(db, rows.slice(0, q.limit).map(toSummary)),
               nextCursor: rows.length > q.limit ? encodeCursor({ o: offset + q.limit }) : null,
             };
           }
@@ -146,7 +166,7 @@ export const publicRoutes =
               .limit(q.limit + 1)
               .offset(offset);
             return {
-              items: rows.slice(0, q.limit).map(toSummary),
+              items: await withOnAir(db, rows.slice(0, q.limit).map(toSummary)),
               nextCursor: rows.length > q.limit ? encodeCursor({ o: offset + q.limit }) : null,
             };
           }
@@ -165,7 +185,7 @@ export const publicRoutes =
           const items = rows.slice(0, q.limit);
           const last = items.at(-1);
           return {
-            items: items.map(toSummary),
+            items: await withOnAir(db, items.map(toSummary)),
             nextCursor:
               rows.length > q.limit && last
                 ? encodeCursor({ r: last.statusRank, n: last.sortName, i: last.id })
@@ -265,6 +285,7 @@ export const publicRoutes =
           }));
           return {
             ...toSummary(row),
+            onAir: schedule.slice(0, 3).map(({ title, start, stop }) => ({ title, start, stop })),
             website: row.website,
             replacedBy,
             reliability,
@@ -319,7 +340,7 @@ export const publicRoutes =
                 asc(pc.name),
               )
               .limit(req.query.limit);
-            return { items: rows.map(toSummary), nextCursor: null };
+            return { items: await withOnAir(db, rows.map(toSummary)), nextCursor: null };
           },
         );
         if (!result) return reply.code(404).send({ error: 'not found' });
@@ -406,6 +427,32 @@ export const publicRoutes =
     );
 
     app.get(
+      '/v1/guide',
+      {
+        schema: {
+          tags: ['channels'],
+          summary: "What's on: live channels with a programme on now, best first, each with its next programmes",
+          response: { 200: ChannelListSchema },
+        },
+      },
+      async (_req, reply) =>
+        cached(redis, cacheKey('/v1/guide'), reply, async () => {
+          const rows = await db
+            .select()
+            .from(pc)
+            .where(
+              and(
+                eq(pc.status, 'live'),
+                sql`exists (select 1 from programmes g where g.channel_id = ${pc.id} and g.start <= now() and g.stop > now())`,
+              ),
+            )
+            .orderBy(sql`${pc.bestScore} desc nulls last`, asc(pc.sortName))
+            .limit(300);
+          return { items: await withOnAir(db, rows.map(toSummary)), nextCursor: null };
+        }),
+    );
+
+    app.get(
       '/v1/trending',
       {
         schema: {
@@ -426,7 +473,12 @@ export const publicRoutes =
             group by p.id, p.name, p.country_code, p.categories, p.languages, p.logo_url, p.best_quality, p.best_height, p.status
             order by viewers desc, p.name
             limit 24`);
-          return { items: rows.rows.map((r) => ({ ...toSummary(r), viewers: Number(r.viewers) })) };
+          return {
+            items: await withOnAir(
+              db,
+              rows.rows.map((r) => ({ ...toSummary(r), viewers: Number(r.viewers) })),
+            ),
+          };
         }),
     );
 

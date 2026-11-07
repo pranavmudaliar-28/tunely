@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { GridIcon, HeartIcon, HomeIcon, LogoMark, TvIcon } from '@/components/ui/icons';
+import { GridIcon, GuideIcon, HeartIcon, HomeIcon, LogoMark, TvIcon } from '@/components/ui/icons';
 import { NavLink } from './nav-link';
 import { PageAds } from '@/components/ads/page-ads';
 import { GlobalPlayer } from '@/components/player/global-player';
@@ -12,6 +12,7 @@ import { FOOTER_PAGES, SUPPORT_URL } from '@/lib/site';
 const NAV = [
   { href: '/', label: 'Home', icon: HomeIcon },
   { href: '/browse', label: 'Live TV', icon: TvIcon },
+  { href: '/guide', label: 'Guide', icon: GuideIcon },
   { href: '/categories', label: 'Categories', icon: GridIcon },
   { href: '/favorites', label: 'Favorites', icon: HeartIcon },
 ];

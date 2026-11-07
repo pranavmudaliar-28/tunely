@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useEffect, useId, useRef, useState } from 'react';
 import { ChannelLogo } from '@/components/channel/channel-logo';
+import { OnNow } from '@/components/channel/now-next';
 import { SearchIcon } from '@/components/ui/icons';
 import { api } from '@/lib/api-client';
 import { channelMeta } from '@/lib/format';
@@ -190,7 +191,9 @@ export function SearchCommand() {
             <ChannelLogo id={c.id} name={c.name} logo={c.logo} className="w-20 shrink-0 [&>span]:text-base" />
             <span className="min-w-0">
               <span className="block truncate font-semibold">{c.name}</span>
-              <span className="text-text-muted block truncate text-[13px]">{channelMeta(c)}</span>
+              <span className="text-text-muted block truncate text-[13px]">
+                {c.onAir?.length ? <OnNow onAir={c.onAir} fallback={channelMeta(c)} /> : channelMeta(c)}
+              </span>
             </span>
           </li>
         ))}

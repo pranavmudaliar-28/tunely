@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ChannelRail } from '@/components/channel/channel-rail';
 import { StatusDot } from '@/components/channel/channel-logo';
@@ -11,6 +12,7 @@ import { PlayerSlot } from '@/components/player/player-slot';
 import { ShortcutsButton } from '@/components/player/shortcuts';
 import { NowNext } from '@/components/channel/now-next';
 import { api, ApiError } from '@/lib/api-client';
+import { tilesHref } from '@/lib/multiview';
 import { channelMeta, countryName, reliabilityText } from '@/lib/format';
 import { breadcrumbs, channelAbout, channelJsonLd } from '@/lib/seo';
 import { mailto, SITE_URL } from '@/lib/site';
@@ -129,6 +131,14 @@ export default async function WatchPage({ params }: Props) {
           <FavoriteButton channel={channel} />
           <ShareButton title={channel.name} />
           <SocialShare name={channel.name} path={`/watch/${encodeURIComponent(channel.id)}`} />
+          {channel.status === 'live' && (
+            <Link
+              href={tilesHref([channel.id])}
+              className="bg-surface-raised text-text flex h-12 items-center rounded-[8px] px-[18px] text-[15px] font-semibold no-underline"
+            >
+              Multi-view
+            </Link>
+          )}
         </div>
       </section>
 

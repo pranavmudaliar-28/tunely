@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/icons';
 import { useAirPlay, useCast } from './cast';
 import { ChannelList } from './channel-list';
+import { useDeadAir } from './dead-air';
 import { PlayerOverlay } from './player-overlay';
 import { openShortcuts, ShortcutsDialog } from './shortcuts';
 import { LiveTimeline, SkipButton, useLiveWindow } from './timeline';
@@ -531,6 +532,21 @@ export function Player({
   }, [cast.casting, stream?.id]);
 
   const playing = state.status === 'playing';
+  // Dead air: offer the next channel, once per channel; never switch by itself.
+  const [deadAir, setDeadAir] = useState<{ id: string; open: boolean } | null>(null);
+  useDeadAir(videoRef, full && playing && !cast.casting && deadAir?.id !== channel.id, () => {
+    setDeadAir({ id: channel.id, open: true });
+    if (stream)
+      sendPlaybackReport({
+        streamId: stream.id,
+        platform: 'web',
+        result: 'error',
+        errorType: 'dead_air',
+        ttffMs: null,
+        sessionId: sessionId(),
+        visitorAge: visitorAge(),
+      });
+  });
   const currentHeight = levels.find((l) => l.index === level)?.height;
   const btn = cn(
     'flex items-center justify-center rounded-[8px] text-[#F2F4F8] hover:bg-white/10',
@@ -644,6 +660,32 @@ export function Player({
           />
         )}
         <SwipeHint show={fullscreen && lineup.length > 1} />
+        {deadAir?.id === channel.id && deadAir.open && playing && (
+          <div
+            role="status"
+            className="absolute inset-x-4 bottom-20 mx-auto flex max-w-[420px] flex-col gap-3 rounded-[12px] bg-black/85 p-4 text-[#F2F4F8] sm:bottom-24"
+          >
+            <p className="text-[15px] font-semibold">No picture or sound for a while.</p>
+            <div className="flex flex-wrap gap-2">
+              {lineup.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => go(1)}
+                  className="h-11 rounded-[8px] bg-[#F2F4F8] px-4 text-[15px] font-semibold text-[#0B0D12]"
+                >
+                  Try next channel
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setDeadAir({ id: channel.id, open: false })}
+                className="h-11 rounded-[8px] bg-white/15 px-4 text-[15px] font-semibold hover:bg-white/25"
+              >
+                Keep watching
+              </button>
+            </div>
+          </div>
+        )}
         {cast.casting && (
           <div
             role="status"

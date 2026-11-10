@@ -28,5 +28,6 @@ test('page-wide ads stay away from video', () => {
   expect(pageAdsAllowed('/', false)).toBe(true);
   expect(pageAdsAllowed('/browse', false)).toBe(true);
   expect(pageAdsAllowed('/watch/AajTak.in', false)).toBe(false);
+  expect(pageAdsAllowed('/multiview', false)).toBe(false); // the page is all video
   expect(pageAdsAllowed('/', true)).toBe(false); // the mini player is open
 });

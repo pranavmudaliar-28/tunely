@@ -70,6 +70,8 @@ Tests that touch Postgres use `TEST_DATABASE_URL` (`createdb tunely_test`, then 
 
 `/guide` lists what's on now and next on every live channel with a guide, by category (`/guide/{category}` for all of one). Channel cards and search results say "Now: …" for those channels. "Remind me" next to an upcoming programme adds it to your calendar with a 5-minute alarm (a .ics file; Google Calendar on Android). The watch page shows what's on now and next where a guide exists, and a Cast button (Chrome, when a Chromecast or Google TV is on the network) or AirPlay (iPhone, iPad). Keyboard and TV remote on the watch page: ↑/↓ channel up/down, G channel list, L last channel, 1–9 your favorites, ←/→ 10 s (when the stream allows), F fullscreen, M mute, Space pause, ? all shortcuts; Ctrl/⌘+K search anywhere (or the search button in the header on phones and in the left rail on desktop). Elsewhere the arrow keys move between channel cards, rails and the nav. Headset and lock-screen previous/next buttons change channel; on phones in fullscreen, swipe up/down changes channel and a double tap on either side skips 10 s.
 
+`/multiview` plays up to 4 live channels side by side (480p each, sound from the one you pick with Listen or keys 1–4); the channels are in the URL (`?c=id1,id2`), and the watch page's Multi-view button starts one. If a playing channel shows a frozen or black picture with no sound for 20 seconds, the watch page offers the next channel (it never switches by itself).
+
 Pages in the browser only: `/history` (remove one channel or clear all) and `/settings` (up to 3 languages, country, data saver). The product roadmap is in [docs/roadmap.md](docs/roadmap.md).
 
 ## Earning (Adsterra, donations, affiliates)

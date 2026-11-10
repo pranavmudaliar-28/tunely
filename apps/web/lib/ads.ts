@@ -41,7 +41,7 @@ export const ADSTERRA = {
 
 /** Popunder and Social Bar stay away from video: no channel pages, and not while the mini player is open. */
 export const pageAdsAllowed = (pathname: string, playing: boolean) =>
-  !playing && !pathname.startsWith('/watch/');
+  !playing && !pathname.startsWith('/watch/') && !pathname.startsWith('/multiview');
 
 /** Adsterra Native Banner script URL. Its key (the last path part) names the `container-{key}` div the ad fills. */
 export function parseNativeSrc(value: string | undefined) {

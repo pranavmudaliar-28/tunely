@@ -123,6 +123,8 @@ export const PlaybackErrorTypes = [
   'timeout',
   'media',
   'unknown',
+  /** It played, then showed a frozen or black picture with no sound (reported after the 'ok'). */
+  'dead_air',
 ] as const;
 
 /** Days since a browser's first visit: 0, 1–7, 8–30, over 30. Measures return visits without an identifier. */

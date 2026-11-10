@@ -18,10 +18,8 @@ import { cn } from '@/lib/utils';
 import {
   AirPlayIcon,
   CastIcon,
-  ChevronDown,
+  CaptionsIcon,
   ChevronLeft,
-  ChevronRight,
-  ChevronUp,
   CloseIcon,
   FullscreenIcon,
   ListIcon,
@@ -29,6 +27,8 @@ import {
   PipIcon,
   PlayIcon,
   SettingsIcon,
+  SkipNextIcon,
+  SkipPrevIcon,
   VolumeIcon,
 } from '@/components/ui/icons';
 import { useAirPlay, useCast } from './cast';
@@ -133,6 +133,11 @@ export function Player({
   const [listOpen, setListOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsButton = useRef<HTMLButtonElement>(null);
+  const settingsPanel = useRef<HTMLDivElement>(null);
+  // Keyboard and TV remotes land on the first setting.
+  useEffect(() => {
+    if (settingsOpen) settingsPanel.current?.querySelector('select')?.focus();
+  }, [settingsOpen]);
   const [fill, setFill] = useState(false);
   const fullscreen = useIsFullscreen(frameRef);
   const live = useLiveWindow(videoRef);
@@ -446,7 +451,6 @@ export function Player({
     const swipe =
       fullscreen && swipeDirection(e.clientX - start.x, e.clientY - start.y, e.timeStamp - start.t);
     if (swipe) return go(swipe === 'up' ? 1 : -1);
-    if (settingsOpen) return setSettingsOpen(false);
     if (start.shown) setIdle(true);
     const rect = frameRef.current.getBoundingClientRect();
     const side = tapSide(e.clientX - rect.left, rect.width);
@@ -572,7 +576,7 @@ export function Player({
   const fade = cn('transition-opacity duration-300', controlsHidden && 'pointer-events-none opacity-0');
   // The middle layer lets taps through to the video (and the top bar); only its buttons take them.
   const centerBtn = cn(
-    'flex size-12 items-center justify-center rounded-full bg-black/45 text-[#F2F4F8] disabled:opacity-40',
+    'flex size-12 items-center justify-center rounded-full bg-black/45 text-[#F2F4F8] disabled:opacity-40 sm:size-14',
     !controlsHidden && 'pointer-events-auto',
   );
 
@@ -611,9 +615,39 @@ export function Player({
     </>
   );
   const hasSettings = captions.options.length > 0 || audio.options.length > 1 || levels.length > 1;
-  // In the touch sheet the labels show; in the bar they're for screen readers.
-  const settingLabel = touchUi ? 'text-sm font-semibold text-[#F2F4F8]' : 'sr-only';
-  const settingRow = touchUi ? 'flex items-center justify-between gap-4' : 'contents';
+  // CC, like YouTube: one tap on (the remembered language, else the first) or off. The gear lists them all.
+  const ccOn = captions.active !== -1;
+  const captionsToggle = captions.options.length > 0 && (
+    <button
+      type="button"
+      className={cn(btn, ccOn && 'text-accent')}
+      onClick={() => {
+        const pick = ccOn
+          ? undefined
+          : (captions.options.find((o) => o.key === rememberedCaptions) ?? captions.options[0]);
+        if (videoRef.current) showCaptions(videoRef.current, pick?.index ?? -1);
+        setCaptions(pick?.key ?? null);
+      }}
+      aria-label="Captions"
+      aria-pressed={ccOn}
+    >
+      <CaptionsIcon />
+    </button>
+  );
+  const settingsToggle = hasSettings && (
+    <button
+      ref={settingsButton}
+      type="button"
+      className={btn}
+      onClick={() => setSettingsOpen((o) => !o)}
+      aria-label="Settings"
+      aria-expanded={settingsOpen}
+    >
+      <SettingsIcon />
+    </button>
+  );
+  const settingLabel = 'text-sm font-semibold text-[#F2F4F8]';
+  const settingRow = 'flex items-center justify-between gap-4';
   const settings = (
     <>
       {captions.options.length > 0 && (
@@ -704,6 +738,13 @@ export function Player({
         onPointerMove={wake}
         onPointerDown={(e) => {
           wake();
+          const t = e.target as HTMLElement;
+          // A press outside the open settings closes them, and does nothing else.
+          if (settingsOpen && !settingsPanel.current?.contains(t) && !settingsButton.current?.contains(t)) {
+            setSettingsOpen(false);
+            touch.current = null;
+            return;
+          }
           onTouchStart(e);
         }}
         onPointerUp={onTouchEnd}
@@ -723,8 +764,15 @@ export function Player({
           className={cn('absolute inset-0 size-full', fill && fullscreen && 'object-cover')}
           onPause={() => dispatch({ type: 'paused' })}
           onPlay={() => state.status === 'paused' && dispatch({ type: 'playing' })}
-          // On touch a double tap skips 10 s instead.
-          onDoubleClick={full && !touchUi ? toggleFullscreen : undefined}
+          // Double-click for fullscreen; on touch only in the middle, since a double tap on a side skips 10 s.
+          onDoubleClick={
+            full
+              ? (e) => {
+                  const r = e.currentTarget.getBoundingClientRect();
+                  if (!touchUi || tapSide(e.clientX - r.left, r.width) === 'center') toggleFullscreen();
+                }
+              : undefined
+          }
         />
 
         {full ? (
@@ -754,18 +802,8 @@ export function Player({
                 <div className="-mr-2 flex shrink-0 items-center">
                   {lineup.length > 1 && listToggle}
                   {castButtons}
-                  {hasSettings && (
-                    <button
-                      ref={settingsButton}
-                      type="button"
-                      className={btn}
-                      onClick={() => setSettingsOpen((o) => !o)}
-                      aria-label="Settings"
-                      aria-expanded={settingsOpen}
-                    >
-                      <SettingsIcon />
-                    </button>
-                  )}
+                  {captionsToggle}
+                  {settingsToggle}
                 </div>
               )}
               <span className="bg-live shrink-0 rounded-[6px] px-2.5 py-[5px] text-xs font-extrabold tracking-[0.08em] text-[#0B0D12]">
@@ -806,25 +844,32 @@ export function Player({
           compact={!full}
         />
 
-        {touchUi && (playing || state.status === 'paused') && !settingsOpen && (
+        {full && (playing || state.status === 'paused') && !settingsOpen && (
           <div
+            // With a mouse these repeat the bar's buttons, which keyboard and screen-reader users already have.
+            aria-hidden={!touchUi || undefined}
             className={cn(
-              'pointer-events-none absolute inset-0 flex items-center justify-center gap-10',
+              'pointer-events-none absolute inset-0 flex items-center justify-center gap-3 sm:gap-8',
               fade,
             )}
           >
+            {touchUi && live.seekable && (
+              <SkipButton seconds={-10} onClick={() => seekBy(-10)} className={centerBtn} />
+            )}
             <button
               type="button"
+              tabIndex={touchUi ? undefined : -1}
               className={centerBtn}
               onClick={() => go(-1)}
               aria-label="Previous channel"
               disabled={lineup.length < 2}
             >
-              <ChevronLeft size={28} />
+              <SkipPrevIcon size={24} />
             </button>
             <button
               type="button"
-              className={cn(centerBtn, 'size-16')}
+              tabIndex={touchUi ? undefined : -1}
+              className={cn(centerBtn, 'size-16 sm:size-[72px]')}
               onClick={togglePlay}
               aria-label={playing ? 'Pause' : 'Play'}
             >
@@ -832,17 +877,27 @@ export function Player({
             </button>
             <button
               type="button"
+              tabIndex={touchUi ? undefined : -1}
               className={centerBtn}
               onClick={() => go(1)}
               aria-label="Next channel"
               disabled={lineup.length < 2}
             >
-              <ChevronRight size={28} />
+              <SkipNextIcon size={24} />
             </button>
+            {touchUi && live.seekable && (
+              <SkipButton
+                seconds={10}
+                onClick={() => seekBy(10)}
+                className={centerBtn}
+                disabled={live.behind < 1}
+              />
+            )}
           </div>
         )}
-        {touchUi && settingsOpen && (
+        {full && settingsOpen && (
           <div
+            ref={settingsPanel}
             role="group"
             aria-label="Player settings"
             onKeyDown={(e) => {
@@ -850,7 +905,13 @@ export function Player({
               setSettingsOpen(false);
               settingsButton.current?.focus();
             }}
-            className="absolute top-16 right-2 z-10 flex max-h-[calc(100%-4.5rem)] w-[min(280px,calc(100%-16px))] flex-col gap-3 overflow-y-auto rounded-[12px] bg-black/90 p-4 sm:top-20 sm:max-h-[calc(100%-5.5rem)]"
+            className={cn(
+              'absolute z-10 flex w-[min(280px,calc(100%-16px))] flex-col gap-3 overflow-y-auto rounded-[12px] bg-black/90 p-4 ring-1 ring-white/15',
+              // Opens next to its gear: top right on touch, above the bar with a mouse.
+              touchUi
+                ? 'top-16 right-2 max-h-[calc(100%-4.5rem)] sm:top-20 sm:max-h-[calc(100%-5.5rem)]'
+                : 'right-2 bottom-24 max-h-[calc(100%-7rem)] sm:right-6 sm:bottom-28',
+            )}
           >
             {settings}
           </div>
@@ -971,7 +1032,7 @@ export function Player({
                   aria-label="Previous channel"
                   disabled={lineup.length < 2}
                 >
-                  <ChevronUp />
+                  <SkipPrevIcon />
                 </button>
                 <button
                   type="button"
@@ -980,7 +1041,7 @@ export function Player({
                   aria-label="Next channel"
                   disabled={lineup.length < 2}
                 >
-                  <ChevronDown />
+                  <SkipNextIcon />
                 </button>
                 {listToggle}
               </>
@@ -1001,26 +1062,22 @@ export function Player({
             </button>
             {full && (
               <>
-                {/* Phones and tablets have volume buttons. */}
-                {!touchUi && (
-                  <>
-                    <label htmlFor="player-volume" className="sr-only">
-                      Volume
-                    </label>
-                    <input
-                      id="player-volume"
-                      type="range"
-                      min={0}
-                      max={100}
-                      value={Math.round((muted ? 0 : volume) * 100)}
-                      onChange={(e) => {
-                        setNeedsTap(false);
-                        setVolume(Number(e.target.value) / 100);
-                      }}
-                      className="hidden w-28 accent-[#F2F4F8] sm:block"
-                    />
-                  </>
-                )}
+                <label htmlFor="player-volume" className="sr-only">
+                  Volume
+                </label>
+                {/* Too narrow on a phone held upright; back in landscape and on tablets. */}
+                <input
+                  id="player-volume"
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={Math.round((muted ? 0 : volume) * 100)}
+                  onChange={(e) => {
+                    setNeedsTap(false);
+                    setVolume(Number(e.target.value) / 100);
+                  }}
+                  className="hidden w-28 accent-[#F2F4F8] sm:block"
+                />
                 {!live.seekable && (
                   <span
                     className={cn(
@@ -1040,7 +1097,8 @@ export function Player({
             ) : (
               <span className="grow" />
             )}
-            {full && !touchUi && settings}
+            {full && !touchUi && captionsToggle}
+            {full && !touchUi && settingsToggle}
             <button
               type="button"
               className={cn(btn, full && 'hidden sm:flex')}

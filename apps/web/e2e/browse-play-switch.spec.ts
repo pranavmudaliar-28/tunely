@@ -179,3 +179,24 @@ test('filter dropdowns are searchable, A–Z, and their counts follow the other 
   await page.keyboard.press('Escape');
   await expect(page.locator('#b-country')).toBeFocused();
 });
+
+test('player: big middle buttons, and quality behind the gear like YouTube', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Watch live' }).click();
+  const player = page.locator('section[data-hydrated]');
+  await player.waitFor();
+  await playerSettled(page);
+  test.skip(await page.locator('[data-testid^="player-error-"]').isVisible(), 'stream offline right now');
+  await expect(player.getByLabel('Volume')).toBeVisible();
+  // The middle buttons are for the mouse; keyboard users have the same ones in the bar.
+  await expect(player.locator('[aria-hidden="true"] button[aria-label="Next channel"]')).toBeVisible();
+  const gear = player.getByRole('button', { name: 'Settings' });
+  test.skip(!(await gear.isVisible()), 'one quality and no captions on this stream');
+  await gear.focus();
+  await page.keyboard.press('Enter');
+  const menu = player.getByRole('group', { name: 'Player settings' });
+  await expect(menu.locator('select').first()).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  await expect(gear).toBeFocused();
+});

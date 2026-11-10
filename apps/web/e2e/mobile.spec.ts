@@ -75,24 +75,30 @@ test('touch player: big middle controls, tap to hide and show, settings behind t
   const pause = player.getByRole('button', { name: 'Pause' });
   await expect(pause).toBeVisible({ timeout: 15_000 });
   await expect(player.getByRole('button', { name: 'Next channel' })).toBeVisible();
-  await expect(player.getByLabel('Volume')).toHaveCount(0); // phones have volume buttons
+  await expect(player.getByLabel('Volume')).toBeHidden(); // upright phones use their volume buttons
   const video = (await player.locator('video').boundingBox())!;
   const mid = (await pause.boundingBox())!;
   expect(Math.abs(mid.y + mid.height / 2 - (video.y + video.height / 2))).toBeLessThan(8);
+  // When the stream can rewind, the 10 s skips sit in the same row.
+  const back = player.getByRole('button', { name: 'Back 10 seconds' });
+  if (await back.isVisible()) {
+    const b = (await back.boundingBox())!;
+    expect(Math.abs(b.y + b.height / 2 - (mid.y + mid.height / 2))).toBeLessThan(4);
+  }
 
   // Tap the picture (away from the buttons): controls hide; tap again: back.
   const layer = pause.locator('..');
-  await player.locator('video').tap({ position: { x: 20, y: video.height / 2 } });
+  await player.locator('video').tap({ position: { x: 10, y: video.height / 2 } });
   await expect(layer).toHaveClass(/opacity-0/);
   await page.waitForTimeout(400); // not a double tap
-  await player.locator('video').tap({ position: { x: 20, y: video.height / 2 } });
+  await player.locator('video').tap({ position: { x: 10, y: video.height / 2 } });
   await expect(layer).not.toHaveClass(/opacity-0/);
 
   const gear = player.getByRole('button', { name: 'Settings' });
   if (await gear.isVisible()) {
     await gear.click();
     await expect(player.getByRole('group', { name: 'Player settings' }).getByLabel('Quality')).toBeVisible();
-    await player.locator('video').tap({ position: { x: 20, y: video.height / 2 } });
+    await player.locator('video').tap({ position: { x: 10, y: video.height / 2 } });
     await expect(player.getByRole('group', { name: 'Player settings' })).toHaveCount(0);
   }
 });

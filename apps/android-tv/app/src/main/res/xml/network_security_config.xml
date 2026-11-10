@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config xmlns:tools="http://schemas.android.com/tools">
+    <!-- Many broadcasters only serve plain-http streams (and logos) from hosts we can't list in advance. We only link
+         to them, never proxy, so cleartext stays allowed. The app's own API calls are HTTPS-only in release builds
+         (checked in TunelyApi). -->
+    <base-config
+        cleartextTrafficPermitted="true"
+        tools:ignore="InsecureBaseConfiguration">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

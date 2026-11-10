@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TV launcher banner: 320x180 px at xhdpi (160x90 dp). The Tunely mark (a screen with a play button) and wordmark. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="160dp"
+    android:height="90dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+    <path
+        android:fillColor="#0B0D12"
+        android:pathData="M0,0 H320 V180 H0 Z" />
+    <group
+        android:scaleX="0.85"
+        android:scaleY="0.85"
+        android:translateX="8.7"
+        android:translateY="8.8">
+        <path
+            android:pathData="M35,58 H85 A9,9 0 0 1 94,67 V97 A9,9 0 0 1 85,106 H35 A9,9 0 0 1 26,97 V67 A9,9 0 0 1 35,58 Z"
+            android:strokeWidth="8"
+            android:strokeColor="#FF4D4F" />
+        <path
+            android:fillColor="#FF4D4F"
+            android:pathData="M53,71 L70,82 L53,93 Z" />
+        <path
+            android:pathData="M48,122 H72"
+            android:strokeWidth="8"
+            android:strokeColor="#FF4D4F"
+            android:strokeLineCap="round" />
+        <path
+            android:pathData="M118,64 H152 M135,64 V114 M164,80 V101 A13,13 0 0 0 190,101 M190,80 V114 M204,114 V80 M204,93 A13,13 0 0 1 230,93 V114 M243,97 H277 A17,17 0 1 0 272,109 M291,60 V114 M303,80 L317,110 M329,80 L309,132"
+            android:strokeWidth="10"
+            android:strokeColor="#F2F4F8"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
+</vector>

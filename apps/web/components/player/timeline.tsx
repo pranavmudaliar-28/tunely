@@ -69,12 +69,12 @@ export function formatClock(seconds: number): string {
   return h ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
 }
 
-export function LiveTimeline({ live }: { live: LiveWindow }) {
+export function LiveTimeline({ live, className }: { live: LiveWindow; className?: string }) {
   const atLive = live.behind <= LIVE_EDGE_S;
   const span = live.end - live.start;
   const pct = span > 0 ? ((live.position - live.start) / span) * 100 : 100;
   return (
-    <div className="flex items-center gap-3 px-2 text-[#F2F4F8]">
+    <div className={cn('flex items-center gap-3 px-2 text-[#F2F4F8]', className)}>
       <label htmlFor="player-seek" className="sr-only">
         Rewind live stream
       </label>
@@ -90,7 +90,8 @@ export function LiveTimeline({ live }: { live: LiveWindow }) {
         className="seek h-6 grow cursor-pointer"
         style={{ '--seek-pct': `${pct}%` } as React.CSSProperties}
       />
-      <span className="min-w-[4.5rem] text-right text-sm font-semibold tabular-nums">
+      {/* Room reserved so the bar doesn't jump, except on phones where the bar needs it more. */}
+      <span className="text-right text-sm font-semibold tabular-nums sm:min-w-[4.5rem]">
         {atLive ? '' : `-${formatClock(live.behind)}`}
       </span>
       <button

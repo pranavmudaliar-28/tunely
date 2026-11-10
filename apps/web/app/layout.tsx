@@ -10,6 +10,7 @@ import {
   Noto_Sans_Tamil,
 } from 'next/font/google';
 import { AppShell } from '@/components/layout/app-shell';
+import { AutoUpdate } from '@/components/layout/auto-update';
 import { themeScript } from '@/components/layout/theme-toggle';
 import { Providers } from '@/components/providers';
 import '@/styles/globals.css';
@@ -70,6 +71,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <AppShell>{children}</AppShell>
         </Providers>
+        <AutoUpdate />
         {ADSENSE_CLIENT && (
           <Script
             id="adsense"

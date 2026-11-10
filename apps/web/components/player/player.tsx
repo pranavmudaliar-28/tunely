@@ -20,6 +20,7 @@ import {
   CastIcon,
   ChevronDown,
   ChevronLeft,
+  ChevronRight,
   ChevronUp,
   CloseIcon,
   FullscreenIcon,
@@ -27,6 +28,7 @@ import {
   PauseIcon,
   PipIcon,
   PlayIcon,
+  SettingsIcon,
   VolumeIcon,
 } from '@/components/ui/icons';
 import { useAirPlay, useCast } from './cast';
@@ -129,6 +131,8 @@ export function Player({
   const [needsTap, setNeedsTap] = useState(false);
   const [idle, setIdle] = useState(false);
   const [listOpen, setListOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsButton = useRef<HTMLButtonElement>(null);
   const [fill, setFill] = useState(false);
   const fullscreen = useIsFullscreen(frameRef);
   const live = useLiveWindow(videoRef);
@@ -140,6 +144,14 @@ export function Player({
     () => true,
     () => false,
   );
+  // Phones and tablets get YouTube-style controls: tap to show, big buttons in the middle, settings behind a gear.
+  // The player only mounts in the browser, so this never flips after the first paint.
+  const touchUi =
+    useSyncExternalStore(
+      noopSubscribe,
+      () => matchMedia('(pointer: coarse)').matches,
+      () => false,
+    ) && full;
 
   const summary: ChannelSummary = useMemo(() => {
     const { streams: _s, website: _w, ...rest } = channel;
@@ -212,6 +224,7 @@ export function Player({
     setNeedsTap(false);
     setTrying(false);
     setListOpen(false);
+    setSettingsOpen(false);
     dispatch({ type: 'channel', streamCount: verified.length });
   }, [channel.id, channel.name, verified.length, setPrevious]);
 
@@ -398,7 +411,7 @@ export function Player({
     idleTimer.current = setTimeout(() => setIdle(true), IDLE_MS);
     return () => clearTimeout(idleTimer.current);
   }, [state.status]);
-  const controlsHidden = full && idle && state.status === 'playing' && !listOpen;
+  const controlsHidden = full && idle && state.status === 'playing' && !listOpen && !settingsOpen;
 
   const closeList = useCallback(() => {
     setListOpen(false);
@@ -415,22 +428,26 @@ export function Player({
     [favorites, channel.id, open],
   );
 
-  // Phones in fullscreen: swipe up/down to change channel, double-tap a side to skip 10 s.
-  const touch = useRef<{ x: number; y: number; t: number } | null>(null);
+  // Touch, like YouTube: tap shows or hides the controls, double-tap a side skips 10 s,
+  // and in fullscreen a swipe up/down changes channel.
+  const touch = useRef<{ x: number; y: number; t: number; shown: boolean } | null>(null);
   const lastTap = useRef<{ t: number; side: string } | null>(null);
   const onTouchStart = (e: React.PointerEvent) => {
-    const onControl = (e.target as HTMLElement).closest('button, a, input, select, nav');
+    const onControl = (e.target as HTMLElement).closest('button, a, input, select, nav, [role="group"]');
     touch.current =
-      fullscreen && e.pointerType === 'touch' && !onControl
-        ? { x: e.clientX, y: e.clientY, t: e.timeStamp }
+      full && e.pointerType === 'touch' && !onControl
+        ? { x: e.clientX, y: e.clientY, t: e.timeStamp, shown: !controlsHidden }
         : null;
   };
   const onTouchEnd = (e: React.PointerEvent) => {
     const start = touch.current;
     touch.current = null;
     if (!start || !frameRef.current) return;
-    const swipe = swipeDirection(e.clientX - start.x, e.clientY - start.y, e.timeStamp - start.t);
+    const swipe =
+      fullscreen && swipeDirection(e.clientX - start.x, e.clientY - start.y, e.timeStamp - start.t);
     if (swipe) return go(swipe === 'up' ? 1 : -1);
+    if (settingsOpen) return setSettingsOpen(false);
+    if (start.shown) setIdle(true);
     const rect = frameRef.current.getBoundingClientRect();
     const side = tapSide(e.clientX - rect.left, rect.width);
     const prev = lastTap.current;
@@ -553,6 +570,127 @@ export function Player({
     full ? 'size-11 sm:size-12' : 'size-10',
   );
   const fade = cn('transition-opacity duration-300', controlsHidden && 'pointer-events-none opacity-0');
+  // The middle layer lets taps through to the video (and the top bar); only its buttons take them.
+  const centerBtn = cn(
+    'flex size-12 items-center justify-center rounded-full bg-black/45 text-[#F2F4F8] disabled:opacity-40',
+    !controlsHidden && 'pointer-events-auto',
+  );
+
+  // Each of these renders once: in the bottom bar with a mouse, at the top (or behind the gear) on touch.
+  const listToggle = (
+    <button
+      ref={listButton}
+      type="button"
+      className={btn}
+      onClick={() => setListOpen((o) => !o)}
+      aria-label="Channel list"
+      aria-expanded={listOpen}
+      disabled={lineup.length < 2}
+    >
+      <ListIcon />
+    </button>
+  );
+  const castButtons = (
+    <>
+      {cast.available && (
+        <button
+          type="button"
+          className={btn}
+          onClick={cast.casting ? cast.stop : cast.start}
+          aria-label={cast.casting ? `Stop casting to ${cast.casting}` : 'Cast to TV'}
+          aria-pressed={Boolean(cast.casting)}
+        >
+          <CastIcon />
+        </button>
+      )}
+      {airplay.available && (
+        <button type="button" className={btn} onClick={airplay.show} aria-label="AirPlay">
+          <AirPlayIcon />
+        </button>
+      )}
+    </>
+  );
+  const hasSettings = captions.options.length > 0 || audio.options.length > 1 || levels.length > 1;
+  // In the touch sheet the labels show; in the bar they're for screen readers.
+  const settingLabel = touchUi ? 'text-sm font-semibold text-[#F2F4F8]' : 'sr-only';
+  const settingRow = touchUi ? 'flex items-center justify-between gap-4' : 'contents';
+  const settings = (
+    <>
+      {captions.options.length > 0 && (
+        <div className={settingRow}>
+          <label htmlFor="player-captions" className={settingLabel}>
+            Captions
+          </label>
+          <select
+            id="player-captions"
+            value={captions.active}
+            onChange={(e) => {
+              const index = Number(e.target.value);
+              if (videoRef.current) showCaptions(videoRef.current, index);
+              setCaptions(captions.options.find((o) => o.index === index)?.key ?? null);
+            }}
+            className="h-10 max-w-[96px] rounded-[8px] bg-white/15 px-2 text-sm font-semibold text-[#F2F4F8] sm:max-w-[160px] [&>option]:text-black"
+          >
+            <option value={-1}>CC off</option>
+            {captions.options.map((o) => (
+              <option key={o.index} value={o.index}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {audio.options.length > 1 && (
+        <div className={settingRow}>
+          <label htmlFor="player-audio" className={settingLabel}>
+            Audio language
+          </label>
+          <select
+            id="player-audio"
+            value={audio.active}
+            onChange={(e) => {
+              if (hlsRef.current) hlsRef.current.audioTrack = Number(e.target.value);
+            }}
+            className="h-10 max-w-[96px] rounded-[8px] bg-white/15 px-2 text-sm font-semibold text-[#F2F4F8] sm:max-w-[160px] [&>option]:text-black"
+          >
+            {audio.options.map((o) => (
+              <option key={o.index} value={o.index}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {levels.length > 1 && (
+        <div className={settingRow}>
+          <label htmlFor="player-quality" className={settingLabel}>
+            Quality
+          </label>
+          <select
+            id="player-quality"
+            value={level}
+            onChange={(e) => {
+              const next = Number(e.target.value);
+              if (hlsRef.current) hlsRef.current.currentLevel = next;
+              setLevel(next);
+              setQuality(levels.find((l) => l.index === next)?.height ?? null);
+            }}
+            className="h-10 max-w-[104px] rounded-[8px] bg-white/15 px-2 text-sm font-semibold text-[#F2F4F8] sm:max-w-none sm:px-3 [&>option]:text-black"
+          >
+            <option value={-1}>
+              Auto{level === -1 && currentHeight ? ` · ${currentHeight}p` : ''}
+              {saver ? ' · data saver' : ''}
+            </option>
+            {levels.map((l) => (
+              <option key={l.index} value={l.index}>
+                {l.height}p
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+    </>
+  );
 
   return (
     <section
@@ -575,7 +713,8 @@ export function Player({
           'relative aspect-video w-full overflow-hidden bg-black',
           controlsHidden && 'cursor-none',
           // Fullscreen swipes are ours, not the browser's (no scroll or pull-to-refresh).
-          fullscreen && 'touch-none',
+          // Elsewhere: no double-tap zoom, so double taps can skip.
+          fullscreen ? 'touch-none' : touchUi && 'touch-manipulation',
         )}
       >
         <video
@@ -584,7 +723,8 @@ export function Player({
           className={cn('absolute inset-0 size-full', fill && fullscreen && 'object-cover')}
           onPause={() => dispatch({ type: 'paused' })}
           onPlay={() => state.status === 'paused' && dispatch({ type: 'playing' })}
-          onDoubleClick={full ? toggleFullscreen : undefined}
+          // On touch a double tap skips 10 s instead.
+          onDoubleClick={full && !touchUi ? toggleFullscreen : undefined}
         />
 
         {full ? (
@@ -602,7 +742,7 @@ export function Player({
               <Link
                 href="/"
                 aria-label="Back to home"
-                className="flex size-11 items-center justify-center rounded-full bg-white/15 text-[#F2F4F8]"
+                className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/15 text-[#F2F4F8]"
               >
                 <ChevronLeft size={20} />
               </Link>
@@ -610,7 +750,25 @@ export function Player({
                 <div className="truncate text-lg font-bold">{channel.name}</div>
                 <div className="truncate text-[13px] text-[#C9D0DD]">{meta}</div>
               </div>
-              <span className="bg-live rounded-[6px] px-2.5 py-[5px] text-xs font-extrabold tracking-[0.08em] text-[#0B0D12]">
+              {touchUi && (
+                <div className="-mr-2 flex shrink-0 items-center">
+                  {lineup.length > 1 && listToggle}
+                  {castButtons}
+                  {hasSettings && (
+                    <button
+                      ref={settingsButton}
+                      type="button"
+                      className={btn}
+                      onClick={() => setSettingsOpen((o) => !o)}
+                      aria-label="Settings"
+                      aria-expanded={settingsOpen}
+                    >
+                      <SettingsIcon />
+                    </button>
+                  )}
+                </div>
+              )}
+              <span className="bg-live shrink-0 rounded-[6px] px-2.5 py-[5px] text-xs font-extrabold tracking-[0.08em] text-[#0B0D12]">
                 LIVE
               </span>
             </div>
@@ -647,6 +805,56 @@ export function Player({
           successor={channel.replacedBy}
           compact={!full}
         />
+
+        {touchUi && (playing || state.status === 'paused') && !settingsOpen && (
+          <div
+            className={cn(
+              'pointer-events-none absolute inset-0 flex items-center justify-center gap-10',
+              fade,
+            )}
+          >
+            <button
+              type="button"
+              className={centerBtn}
+              onClick={() => go(-1)}
+              aria-label="Previous channel"
+              disabled={lineup.length < 2}
+            >
+              <ChevronLeft size={28} />
+            </button>
+            <button
+              type="button"
+              className={cn(centerBtn, 'size-16')}
+              onClick={togglePlay}
+              aria-label={playing ? 'Pause' : 'Play'}
+            >
+              {playing ? <PauseIcon size={34} /> : <PlayIcon size={32} />}
+            </button>
+            <button
+              type="button"
+              className={centerBtn}
+              onClick={() => go(1)}
+              aria-label="Next channel"
+              disabled={lineup.length < 2}
+            >
+              <ChevronRight size={28} />
+            </button>
+          </div>
+        )}
+        {touchUi && settingsOpen && (
+          <div
+            role="group"
+            aria-label="Player settings"
+            onKeyDown={(e) => {
+              if (e.key !== 'Escape') return;
+              setSettingsOpen(false);
+              settingsButton.current?.focus();
+            }}
+            className="absolute top-16 right-2 z-10 flex max-h-[calc(100%-4.5rem)] w-[min(280px,calc(100%-16px))] flex-col gap-3 overflow-y-auto rounded-[12px] bg-black/90 p-4 sm:top-20 sm:max-h-[calc(100%-5.5rem)]"
+          >
+            {settings}
+          </div>
+        )}
 
         {full && listOpen && (
           <ChannelList
@@ -705,7 +913,8 @@ export function Player({
           </div>
         )}
 
-        {needsTap && playing && (
+        {/* On touch the bar's mute button turns into the pill: here it would cover the play button. */}
+        {needsTap && playing && !touchUi && (
           <button
             type="button"
             onClick={toggleMute}
@@ -730,17 +939,19 @@ export function Player({
             fade,
           )}
         >
-          {full && live.seekable && <LiveTimeline live={live} />}
+          {full && live.seekable && !touchUi && <LiveTimeline live={live} />}
           <div className={cn('flex items-center', full ? 'gap-0 sm:gap-1.5' : 'gap-0')}>
-            <button
-              type="button"
-              className={btn}
-              onClick={togglePlay}
-              aria-label={playing ? 'Pause' : 'Play'}
-            >
-              {playing ? <PauseIcon size={full ? 26 : 22} /> : <PlayIcon size={full ? 24 : 20} />}
-            </button>
-            {full && live.seekable && (
+            {!touchUi && (
+              <button
+                type="button"
+                className={btn}
+                onClick={togglePlay}
+                aria-label={playing ? 'Pause' : 'Play'}
+              >
+                {playing ? <PauseIcon size={full ? 26 : 22} /> : <PlayIcon size={full ? 24 : 20} />}
+              </button>
+            )}
+            {full && live.seekable && !touchUi && (
               <>
                 <SkipButton seconds={-10} onClick={() => seekBy(-10)} className={btn} />
                 <SkipButton
@@ -751,7 +962,7 @@ export function Player({
                 />
               </>
             )}
-            {full && (
+            {full && !touchUi && (
               <>
                 <button
                   type="button"
@@ -771,126 +982,65 @@ export function Player({
                 >
                   <ChevronDown />
                 </button>
-                <button
-                  ref={listButton}
-                  type="button"
-                  className={btn}
-                  onClick={() => setListOpen((o) => !o)}
-                  aria-label="Channel list"
-                  aria-expanded={listOpen}
-                  disabled={lineup.length < 2}
-                >
-                  <ListIcon />
-                </button>
+                {listToggle}
               </>
             )}
             <button
               type="button"
-              className={btn}
+              className={cn(
+                btn,
+                touchUi &&
+                  needsTap &&
+                  'w-auto gap-2 bg-[#F2F4F8] px-3 text-sm font-semibold text-[#0B0D12] hover:bg-white',
+              )}
               onClick={toggleMute}
               aria-label={muted || needsTap ? 'Unmute' : 'Mute'}
             >
               <VolumeIcon muted={muted || needsTap} size={full ? 22 : 20} />
+              {touchUi && needsTap && 'Unmute'}
             </button>
             {full && (
               <>
-                <label htmlFor="player-volume" className="sr-only">
-                  Volume
-                </label>
-                <input
-                  id="player-volume"
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={Math.round((muted ? 0 : volume) * 100)}
-                  onChange={(e) => {
-                    setNeedsTap(false);
-                    setVolume(Number(e.target.value) / 100);
-                  }}
-                  className="hidden w-28 accent-[#F2F4F8] sm:block"
-                />
+                {/* Phones and tablets have volume buttons. */}
+                {!touchUi && (
+                  <>
+                    <label htmlFor="player-volume" className="sr-only">
+                      Volume
+                    </label>
+                    <input
+                      id="player-volume"
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={Math.round((muted ? 0 : volume) * 100)}
+                      onChange={(e) => {
+                        setNeedsTap(false);
+                        setVolume(Number(e.target.value) / 100);
+                      }}
+                      className="hidden w-28 accent-[#F2F4F8] sm:block"
+                    />
+                  </>
+                )}
                 {!live.seekable && (
-                  <span className="hidden items-center gap-1.5 pl-3 text-sm font-bold text-[#F2F4F8] sm:flex">
+                  <span
+                    className={cn(
+                      'items-center gap-1.5 pl-3 text-sm font-bold text-[#F2F4F8]',
+                      touchUi ? 'flex' : 'hidden sm:flex',
+                    )}
+                  >
                     <span aria-hidden="true" className="bg-live size-2 rounded-full" />
                     Live
                   </span>
                 )}
               </>
             )}
-            <span className="grow" />
-            {full && captions.options.length > 0 && (
-              <>
-                <label htmlFor="player-captions" className="sr-only">
-                  Captions
-                </label>
-                <select
-                  id="player-captions"
-                  value={captions.active}
-                  onChange={(e) => {
-                    const index = Number(e.target.value);
-                    if (videoRef.current) showCaptions(videoRef.current, index);
-                    setCaptions(captions.options.find((o) => o.index === index)?.key ?? null);
-                  }}
-                  className="h-10 max-w-[96px] rounded-[8px] bg-white/15 px-2 text-sm font-semibold text-[#F2F4F8] sm:max-w-[160px] [&>option]:text-black"
-                >
-                  <option value={-1}>CC off</option>
-                  {captions.options.map((o) => (
-                    <option key={o.index} value={o.index}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </>
+            {/* Touch: one row, like YouTube, so the middle stays free for the big buttons. */}
+            {touchUi && live.seekable ? (
+              <LiveTimeline live={live} className="min-w-0 grow gap-2 px-1" />
+            ) : (
+              <span className="grow" />
             )}
-            {full && audio.options.length > 1 && (
-              <>
-                <label htmlFor="player-audio" className="sr-only">
-                  Audio language
-                </label>
-                <select
-                  id="player-audio"
-                  value={audio.active}
-                  onChange={(e) => {
-                    if (hlsRef.current) hlsRef.current.audioTrack = Number(e.target.value);
-                  }}
-                  className="h-10 max-w-[96px] rounded-[8px] bg-white/15 px-2 text-sm font-semibold text-[#F2F4F8] sm:max-w-[160px] [&>option]:text-black"
-                >
-                  {audio.options.map((o) => (
-                    <option key={o.index} value={o.index}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </>
-            )}
-            {full && levels.length > 1 && (
-              <>
-                <label htmlFor="player-quality" className="sr-only">
-                  Quality
-                </label>
-                <select
-                  id="player-quality"
-                  value={level}
-                  onChange={(e) => {
-                    const next = Number(e.target.value);
-                    if (hlsRef.current) hlsRef.current.currentLevel = next;
-                    setLevel(next);
-                    setQuality(levels.find((l) => l.index === next)?.height ?? null);
-                  }}
-                  className="h-10 max-w-[104px] rounded-[8px] bg-white/15 px-2 text-sm font-semibold text-[#F2F4F8] sm:max-w-none sm:px-3 [&>option]:text-black"
-                >
-                  <option value={-1}>
-                    Auto{level === -1 && currentHeight ? ` · ${currentHeight}p` : ''}
-                    {saver ? ' · data saver' : ''}
-                  </option>
-                  {levels.map((l) => (
-                    <option key={l.index} value={l.index}>
-                      {l.height}p
-                    </option>
-                  ))}
-                </select>
-              </>
-            )}
+            {full && !touchUi && settings}
             <button
               type="button"
               className={cn(btn, full && 'hidden sm:flex')}
@@ -899,22 +1049,7 @@ export function Player({
             >
               <PipIcon size={full ? 22 : 20} />
             </button>
-            {full && cast.available && (
-              <button
-                type="button"
-                className={btn}
-                onClick={cast.casting ? cast.stop : cast.start}
-                aria-label={cast.casting ? `Stop casting to ${cast.casting}` : 'Cast to TV'}
-                aria-pressed={Boolean(cast.casting)}
-              >
-                <CastIcon />
-              </button>
-            )}
-            {full && airplay.available && (
-              <button type="button" className={btn} onClick={airplay.show} aria-label="AirPlay">
-                <AirPlayIcon />
-              </button>
-            )}
+            {full && !touchUi && castButtons}
             {fullscreen && (
               <button
                 type="button"

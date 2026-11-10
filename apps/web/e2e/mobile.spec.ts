@@ -28,3 +28,71 @@ test('filters fold behind a button and fit the screen', async ({ page }) => {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(overflow).toBe(false);
 });
+
+test('voice search fills the box with what was said', async ({ page }) => {
+  // A stand-in for the browser's speech recogniser: "hears" sun tv right after start.
+  await page.addInitScript(() => {
+    class FakeRecognition {
+      lang = '';
+      interimResults = false;
+      onresult: ((e: unknown) => void) | null = null;
+      onerror: ((e: unknown) => void) | null = null;
+      onend: (() => void) | null = null;
+      start() {
+        setTimeout(() => {
+          this.onresult?.({ results: [[{ transcript: 'sun tv' }]] });
+          this.onend?.();
+        }, 50);
+      }
+      stop() {
+        this.onend?.();
+      }
+      abort() {
+        this.onend?.();
+      }
+    }
+    const w = window as unknown as Record<string, unknown>;
+    w.SpeechRecognition = w.webkitSpeechRecognition = FakeRecognition;
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Search channels' }).click();
+  await page.getByRole('button', { name: 'Search by voice' }).click();
+  await expect(page.getByRole('combobox', { name: 'Search channels' })).toHaveValue('sun tv');
+  await expect(page.getByRole('button', { name: 'Search by voice' })).toBeVisible(); // stopped listening
+});
+
+test('touch player: big middle controls, tap to hide and show, settings behind the gear', async ({
+  page,
+}) => {
+  expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Watch live' }).click();
+  const player = page.locator('section[data-hydrated]');
+  await player.waitFor();
+  await expect(page.getByTestId('player-loading')).toBeHidden({ timeout: 15_000 });
+  test.skip(await page.locator('[data-testid^="player-error-"]').isVisible(), 'stream offline right now');
+
+  const pause = player.getByRole('button', { name: 'Pause' });
+  await expect(pause).toBeVisible({ timeout: 15_000 });
+  await expect(player.getByRole('button', { name: 'Next channel' })).toBeVisible();
+  await expect(player.getByLabel('Volume')).toHaveCount(0); // phones have volume buttons
+  const video = (await player.locator('video').boundingBox())!;
+  const mid = (await pause.boundingBox())!;
+  expect(Math.abs(mid.y + mid.height / 2 - (video.y + video.height / 2))).toBeLessThan(8);
+
+  // Tap the picture (away from the buttons): controls hide; tap again: back.
+  const layer = pause.locator('..');
+  await player.locator('video').tap({ position: { x: 20, y: video.height / 2 } });
+  await expect(layer).toHaveClass(/opacity-0/);
+  await page.waitForTimeout(400); // not a double tap
+  await player.locator('video').tap({ position: { x: 20, y: video.height / 2 } });
+  await expect(layer).not.toHaveClass(/opacity-0/);
+
+  const gear = player.getByRole('button', { name: 'Settings' });
+  if (await gear.isVisible()) {
+    await gear.click();
+    await expect(player.getByRole('group', { name: 'Player settings' }).getByLabel('Quality')).toBeVisible();
+    await player.locator('video').tap({ position: { x: 20, y: video.height / 2 } });
+    await expect(player.getByRole('group', { name: 'Player settings' })).toHaveCount(0);
+  }
+});

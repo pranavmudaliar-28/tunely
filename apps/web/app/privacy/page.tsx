@@ -65,6 +65,12 @@ export default function PrivacyPage() {
           access tokens. Deleting your account (on the account page) removes all of it.
         </li>
         <li>Our hosting providers keep standard server logs for security, for a short time.</li>
+        <li>
+          Voice search uses your browser&apos;s own speech recognition, which may send the audio to your
+          browser&apos;s maker (for example Google or Apple) to turn it into text. Only the text reaches the
+          search box; we never receive or keep your voice. The microphone is used only while the mic button is
+          on.
+        </li>
       </ul>
 
       <h2>Advertising and cookies</h2>

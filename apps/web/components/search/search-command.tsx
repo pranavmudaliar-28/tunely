@@ -6,11 +6,13 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useId, useRef, useState } from 'react';
 import { ChannelLogo } from '@/components/channel/channel-logo';
 import { OnNow } from '@/components/channel/now-next';
-import { SearchIcon } from '@/components/ui/icons';
+import { MicIcon, SearchIcon } from '@/components/ui/icons';
 import { api } from '@/lib/api-client';
 import { channelMeta } from '@/lib/format';
 import { usePlayerStore } from '@/lib/player/store';
 import { searchDictionary } from '@/lib/search-dictionary';
+import { cn } from '@/lib/utils';
+import { useVoiceSearch } from '@/lib/voice-search';
 
 const OPEN_EVENT = 'tunely:search';
 
@@ -44,6 +46,10 @@ export function SearchCommand() {
   const [debounced, setDebounced] = useState('');
   const [active, setActive] = useState(0);
   const listId = useId();
+  const voice = useVoiceSearch((text) => {
+    setTerm(text);
+    setActive(0);
+  });
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(term.trim()), 200);
@@ -138,6 +144,7 @@ export function SearchCommand() {
       ref={dialog}
       aria-label="Search channels"
       onClick={(e) => e.target === dialog.current && dialog.current.close()}
+      onClose={voice.cancel}
       className="bg-surface-raised text-text border-border m-auto mt-[10vh] w-[min(640px,calc(100vw-32px))] rounded-[12px] border p-0 backdrop:bg-black/60"
     >
       <div className="border-border flex items-center gap-3 border-b px-4">
@@ -150,7 +157,7 @@ export function SearchCommand() {
           aria-controls={listId}
           aria-activedescendant={results[active] ? `${listId}-${active}` : undefined}
           aria-label="Search channels"
-          placeholder="Search channels"
+          placeholder={voice.state === 'listening' ? 'Listening…' : 'Search channels'}
           value={term}
           onChange={(e) => {
             setTerm(e.target.value);
@@ -170,8 +177,35 @@ export function SearchCommand() {
           }}
           className="h-14 grow bg-transparent text-base outline-none"
         />
+        {voice.supported && (
+          <button
+            type="button"
+            onClick={(e) => {
+              voice.toggle();
+              // Keyboard or remote (detail 0): back to the box, where arrows and Enter pick a result.
+              // A tap leaves focus here so the phone keyboard doesn't cover the results.
+              if (e.detail === 0) input.current?.focus();
+            }}
+            aria-label={voice.state === 'listening' ? 'Stop listening' : 'Search by voice'}
+            className={cn(
+              'flex size-11 shrink-0 items-center justify-center rounded-full',
+              voice.state === 'listening'
+                ? 'bg-live text-[#0B0D12] motion-safe:animate-pulse'
+                : 'bg-surface text-text hover:bg-border',
+            )}
+          >
+            <MicIcon />
+          </button>
+        )}
         <kbd className="text-text-muted hidden text-xs sm:block">Esc</kbd>
       </div>
+      {voice.state !== 'idle' && (
+        <p role="status" className="text-text-muted px-4 pt-3 text-[13px]">
+          {voice.state === 'listening'
+            ? 'Listening… say a channel name, or what you want: “tamil news”.'
+            : 'The microphone is blocked. Allow it for this site in your browser settings to search by voice.'}
+        </p>
+      )}
       {debounced && data?.label && (
         <p className="text-text-muted px-4 pt-3 text-[13px]" aria-live="polite">
           Showing {data.label}

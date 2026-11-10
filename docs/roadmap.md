@@ -73,7 +73,7 @@ Done: **H1 Now & Next** on watch pages, cards and search, and the `/guide` page,
 - **Accounts in production:** a Resend account (free tier) with a verified sending domain and/or a Google OAuth client, plus `BETTER_AUTH_SECRET` and `DATABASE_URL` on Vercel.
 - **Admin 2FA:** admin is still the `ADMIN_TOKEN` bearer on the API; the admin UI with 2FA (Better Auth's two-factor plugin) waits for Phase 5's admin screens.
 - **Paid AI:** an LLM for smart search v2 or catalog checks.
-- **Large dependency:** the on-device speech model for A4.
+- **A4 on-device captions (not built):** transformers.js 4.3 runs Whisper in the browser, but needs `onnxruntime-web` 1.31, a 145 MB *development pre-release*, plus Node-only native packages (`onnxruntime-node`, `sharp`) in every CI and Vercel install (~200 MB). The light alternative, loading it from a CDN at runtime, puts third-party JavaScript on our origin, where it could read a signed-in viewer's lists. Options: (a) the npm dependency, with the runtime files self-hosted; (b) the CDN, only on an opt-in lab page; (c) wait for a stable onnxruntime-web. Either way the model (~40-80 MB) downloads once from Hugging Face, and the audio never leaves the device.
 - **Accounts:** when to start them.
 
 ## Not planned, and why

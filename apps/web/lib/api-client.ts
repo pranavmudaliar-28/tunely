@@ -16,7 +16,7 @@ import {
 import type { z } from 'zod';
 
 // Server components can reach the API on an internal URL; the browser always uses the public one.
-const API_URL =
+export const API_URL =
   (typeof window === 'undefined' ? process.env.API_URL : undefined) ??
   process.env.NEXT_PUBLIC_API_URL ??
   'http://localhost:4000';

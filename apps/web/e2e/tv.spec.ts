@@ -43,10 +43,14 @@ test('? lists the shortcuts', async ({ page }) => {
 test('arrow keys move between channel cards like a TV remote', async ({ page }) => {
   await page.goto('/browse');
   const cards = page.locator('a[data-nav][href^="/watch/"]');
-  await cards.first().focus();
   const before = await cards.first().boundingBox();
-  await page.keyboard.press('ArrowRight');
   const focused = page.locator('a[data-nav][href^="/watch/"]:focus');
+  // The arrow-key listener attaches on hydration: press again until focus moves.
+  await expect(async () => {
+    await cards.first().focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(cards.first()).not.toBeFocused({ timeout: 1000 });
+  }).toPass();
   await expect(focused).toHaveCount(1);
   const after = await focused.boundingBox();
   expect(after!.x).toBeGreaterThan(before!.x);

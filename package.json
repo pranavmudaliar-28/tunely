@@ -14,7 +14,8 @@
     "format": "prettier --write .",
     "db:generate": "pnpm --filter @tunely/db generate",
     "db:migrate": "pnpm --filter @tunely/db migrate",
-    "stats": "pnpm --filter @tunely/worker stats"
+    "stats": "pnpm --filter @tunely/worker stats",
+    "quality": "pnpm --filter @tunely/worker quality"
   },
   "devDependencies": {
     "esbuild": "0.28.2",

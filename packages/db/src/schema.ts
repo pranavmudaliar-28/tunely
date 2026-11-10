@@ -259,6 +259,46 @@ export const programmes = pgTable(
   (t) => [primaryKey({ columns: [t.channelId, t.start] })],
 );
 
+// ---- Web push (opt-in, no account) ----
+
+/** A browser that turned notifications on. The endpoint comes from the browser's push service; no IP, no user. */
+export const pushSubscriptions = pgTable('push_subscriptions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  endpoint: text('endpoint').notNull().unique(),
+  p256dh: text('p256dh').notNull(),
+  auth: text('auth').notNull(),
+  /** Back-online notices: at most one a day. */
+  lastNotifiedAt: timestamp('last_notified_at', { withTimezone: true }),
+  createdAt: createdAt(),
+});
+
+/** "Tell me when it's back": deleted once the channel is live again and the notice is sent. */
+export const pushFollows = pgTable(
+  'push_follows',
+  {
+    subscriptionId: uuid('subscription_id')
+      .notNull()
+      .references(() => pushSubscriptions.id, { onDelete: 'cascade' }),
+    channelId: text('channel_id').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.subscriptionId, t.channelId] }), index('push_follows_channel_idx').on(t.channelId)],
+);
+
+/** A programme reminder, sent 5 minutes before it starts, then deleted. */
+export const pushReminders = pgTable(
+  'push_reminders',
+  {
+    subscriptionId: uuid('subscription_id')
+      .notNull()
+      .references(() => pushSubscriptions.id, { onDelete: 'cascade' }),
+    channelId: text('channel_id').notNull(),
+    start: timestamp('start', { withTimezone: true }).notNull(),
+    title: text('title').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.subscriptionId, t.channelId, t.start] })],
+);
+
 export const takedownRequests = pgTable('takedown_requests', {
   id: uuid('id').primaryKey().defaultRandom(),
   channelId: text('channel_id'),

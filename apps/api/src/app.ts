@@ -19,6 +19,7 @@ import { adminRoutes } from './routes/admin';
 import { devRoutes } from './routes/dev';
 import { healthRoutes } from './routes/health';
 import { publicRoutes } from './routes/public';
+import { pushRoutes } from './routes/push';
 
 export interface Deps {
   db: Db;
@@ -96,6 +97,7 @@ export function buildApp(deps: Deps) {
   app.register(healthRoutes(deps));
 
   app.register(publicRoutes(deps));
+  app.register(pushRoutes(deps));
   app.register(adminRoutes(deps));
   if (process.env.NODE_ENV !== 'production') app.register(devRoutes(deps));
 

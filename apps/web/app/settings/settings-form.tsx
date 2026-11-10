@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { PushSettings } from '@/components/channel/notify-button';
 import { LanguagePicker } from '@/components/channel/your-languages';
 import { DATA_SAVER_HEIGHT, MAX_LANGUAGES, savePrefs, usePrefs } from '@/lib/prefs';
 
@@ -83,6 +84,8 @@ export function SettingsForm({ countries, languages }: { countries: Option[]; la
           ))}
         </div>
       </section>
+
+      <PushSettings />
 
       <section aria-labelledby="s-data" className="flex flex-col gap-2">
         <h2 id="s-data" className="text-lg font-semibold">

@@ -15,7 +15,8 @@ export const STREAM = {
 /** Six channels: five live (one still pending review) and one offline (its only stream scores under 50). */
 export async function seed(db: Db) {
   await db.execute(sql`truncate channels, feeds, streams, logos, countries, categories, languages, blocklist,
-    channel_curation, stream_health, stream_checks, playback_reports, programmes`);
+    channel_curation, stream_health, stream_checks, playback_reports, programmes,
+    push_subscriptions, push_follows, push_reminders`);
   await db.execute(sql`insert into countries (code, name, flag, languages) values
     ('IN', 'India', 'IN-flag', '{hin}'), ('DE', 'Germany', 'DE-flag', '{deu}'), ('FR', 'France', 'FR-flag', '{fra}')`);
   await db.execute(sql`insert into categories (id, name) values ('news', 'News'), ('general', 'General')`);

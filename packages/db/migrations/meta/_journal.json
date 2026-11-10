@@ -57,6 +57,13 @@
       "when": 1793957979931,
       "tag": "0007_zippy_talisman",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794298784507,
+      "tag": "0008_new_mercury",
+      "breakpoints": true
     }
   ]
 }

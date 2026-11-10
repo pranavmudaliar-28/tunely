@@ -1,6 +1,7 @@
 'use client';
 
 import { addReminder } from '@/lib/reminder';
+import { NotifyBefore } from './notify-button';
 import { nowAndNext, timeLeft, useClock, type Slot } from '@/lib/schedule';
 import { SITE_URL } from '@/lib/site';
 
@@ -77,6 +78,7 @@ export function NowNext({
               Remind me
             </button>
           )}
+          {channel && <NotifyBefore channelId={channel.id} start={next.start} title={next.title} />}
         </p>
       )}
     </section>

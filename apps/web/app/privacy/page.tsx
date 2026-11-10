@@ -52,6 +52,12 @@ export default function PrivacyPage() {
           To show channels from your country on the home page, our host works out your country from your
           connection. We use only the country code, in your browser, and never store it.
         </li>
+        <li>
+          If you turn on notifications (&ldquo;Notify me&rdquo;), we store your browser&apos;s push address, issued by
+          your browser&apos;s push service, with the channels you asked us to watch and the programmes you asked to be
+          reminded of. Each request is deleted once its notification is sent, and all of it when you turn
+          notifications off in Settings. No account and no IP address.
+        </li>
         <li>Our hosting providers keep standard server logs for security, for a short time.</li>
       </ul>
 

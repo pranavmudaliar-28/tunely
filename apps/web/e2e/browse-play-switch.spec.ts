@@ -48,8 +48,14 @@ test('channel cards are reachable by keyboard with a visible focus ring', async 
   await expect(firstCard).toBeFocused();
   const outline = await firstCard.evaluate((el) => getComputedStyle(el).outlineStyle);
   expect(outline).not.toBe('none');
-  await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/watch\//);
+  // A key pressed while the page is still hydrating can be lost: press again until it navigates.
+  await expect(async () => {
+    if (!page.url().includes('/watch/')) {
+      await firstCard.focus();
+      await page.keyboard.press('Enter');
+    }
+    await expect(page).toHaveURL(/\/watch\//, { timeout: 2000 });
+  }).toPass();
 });
 
 test('Ctrl+K search opens a channel', async ({ page }) => {
@@ -68,7 +74,13 @@ test('favorites persist across reloads without an account', async ({ page }) => 
   const fav = page.getByRole('button', { name: /^Add .* to favorites$/ }).first();
   const label = (await fav.getAttribute('aria-label'))!;
   const name = label.replace(/^Add (.*) to favorites$/, '$1');
-  await fav.click();
+  // A click before hydration does nothing: click until the button says it's saved.
+  const saved = page.getByRole('button', { name: `Remove ${name} from favorites` }).first();
+  const add = page.getByRole('button', { name: label }).first();
+  await expect(async () => {
+    if (await add.isVisible()) await add.click();
+    await expect(saved).toBeVisible({ timeout: 1000 });
+  }).toPass();
   await page.goto('/favorites');
   await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
   await page.reload();

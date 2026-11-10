@@ -1,6 +1,13 @@
 import { refreshPublicChannels } from '@tunely/db';
 import { sql } from 'drizzle-orm';
-import { JOB, QUEUE, WORKER_HEARTBEAT_EVERY_S, WORKER_HEARTBEAT_KEY, WORKER_JOBS_KEY } from '@tunely/shared';
+import {
+  JOB,
+  QUEUE,
+  REMINDER_LEAD_MS,
+  WORKER_HEARTBEAT_EVERY_S,
+  WORKER_HEARTBEAT_KEY,
+  WORKER_JOBS_KEY,
+} from '@tunely/shared';
 import { Queue, Worker, type Processor } from 'bullmq';
 import { pino } from 'pino';
 import { config } from './config';
@@ -10,11 +17,24 @@ import { runGuide } from './jobs/guide';
 import { pruneHistory, rescore, runHealthBatch } from './jobs/health';
 import { flushReports } from './jobs/reports';
 import { rollupDailyStats } from './jobs/stats';
+import { notifyBackOnline, pushConfig, reseedReminders, sendDueReminders } from './push/notify';
 import { createRedis } from './redis';
 
 const log = pino({ level: process.env.LOG_LEVEL ?? 'info' });
 const connection = createRedis();
 const { db, pool } = dbFromEnv();
+
+// Web push is off unless the VAPID keys are set.
+const push = pushConfig();
+if (push) log.info({ reminders: await reseedReminders(db, connection, REMINDER_LEAD_MS) }, 'web push on');
+/** After the public directory changes: tell followers their channel is back. Never fails the job it follows. */
+const backOnline = async () =>
+  push
+    ? notifyBackOnline(db, push).catch((err: unknown) => {
+        log.warn({ err }, 'back-online notices failed');
+        return 0;
+      })
+    : 0;
 
 const catalogQueue = new Queue(QUEUE.catalog, { connection });
 const healthQueue = new Queue(QUEUE.health, { connection });
@@ -87,20 +107,26 @@ const handlers: Record<string, Processor> = {
   [JOB.catalogSync]: async () => {
     const counts = await runCatalogSync(db);
     await scheduleCatchUp(); // new streams have never been checked
-    return counts;
+    return { ...counts, pushed: await backOnline() };
   },
   [JOB.healthBatch]: async () => {
     const result = await runHealthBatch(db, { limit: config.healthBatchSize });
     await scheduleCatchUp();
-    return result;
+    return { ...result, pushed: await backOnline() };
   },
   [JOB.flushReports]: async () => {
+    // Due reminders live in Redis: checking every 10 s costs no database query.
+    if (push)
+      await sendDueReminders(db, connection, push).catch((err: unknown) => log.warn({ err }, 'reminders failed'));
     const { inserted, streamIds } = await flushReports(db, connection);
     if (!streamIds.length) return { inserted };
     // Viewers' plays can make a channel live (or not) right away: rescore just those streams, and
     // rebuild the public directory only if a status actually changed.
     const { changed } = await rescore(db, streamIds);
-    if (changed) await refreshPublicChannels(db);
+    if (changed) {
+      await refreshPublicChannels(db);
+      await backOnline();
+    }
     return { inserted, changed };
   },
   [JOB.guide]: async () => runGuide(db, connection),
@@ -110,7 +136,7 @@ const handlers: Record<string, Processor> = {
     await pruneHistory(db);
     const { scored: rescored } = await rescore(db);
     await refreshPublicChannels(db);
-    return { rescored, rolledUp };
+    return { rescored, rolledUp, pushed: await backOnline() };
   },
 };
 

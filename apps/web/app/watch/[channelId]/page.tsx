@@ -10,6 +10,7 @@ import { AdBanner, AdNative } from '@/components/ads/ad-banner';
 import { JsonLd } from '@/components/json-ld';
 import { PlayerSlot } from '@/components/player/player-slot';
 import { ShortcutsButton } from '@/components/player/shortcuts';
+import { NotifyWhenBack } from '@/components/channel/notify-button';
 import { NowNext } from '@/components/channel/now-next';
 import { api, ApiError } from '@/lib/api-client';
 import { tilesHref } from '@/lib/multiview';
@@ -131,6 +132,9 @@ export default async function WatchPage({ params }: Props) {
           <FavoriteButton channel={channel} />
           <ShareButton title={channel.name} />
           <SocialShare name={channel.name} path={`/watch/${encodeURIComponent(channel.id)}`} />
+          {(channel.status === 'offline' || channel.status === 'no_stream') && (
+            <NotifyWhenBack channelId={channel.id} />
+          )}
           {channel.status === 'live' && (
             <Link
               href={tilesHref([channel.id])}

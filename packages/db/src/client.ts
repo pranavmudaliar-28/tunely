@@ -3,8 +3,8 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import * as schema from './schema';
 
-export function createDb(url: string) {
-  const pool = new pg.Pool({ connectionString: url, max: 10 });
+export function createDb(url: string, max = 10) {
+  const pool = new pg.Pool({ connectionString: url, max });
   // Without a listener, a connection the server drops while idle crashes the process. The pool replaces it.
   pool.on('error', (err) => console.error('idle database connection lost:', err.message));
   return { db: drizzle(pool, { schema }), pool };
@@ -15,3 +15,6 @@ export type Db = ReturnType<typeof createDb>['db'];
 export async function refreshPublicChannels(db: Db) {
   await db.execute(sql`select refresh_public_channels()`);
 }
+
+/** For callers that import only this module (the web app). */
+export { sql } from 'drizzle-orm';

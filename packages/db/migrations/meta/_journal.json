@@ -64,6 +64,13 @@
       "when": 1794298784507,
       "tag": "0008_new_mercury",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794301660490,
+      "tag": "0009_premium_makkari",
+      "breakpoints": true
     }
   ]
 }

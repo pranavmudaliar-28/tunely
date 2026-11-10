@@ -2,7 +2,7 @@ import type { NextConfig } from 'next';
 import { fileURLToPath } from 'node:url';
 
 const config: NextConfig = {
-  transpilePackages: ['@tunely/shared'],
+  transpilePackages: ['@tunely/shared', '@tunely/db'],
   poweredByHeader: false,
   // Self-contained server bundle for the Docker image (deploy/). Traced from the monorepo root so
   // workspace packages are included.

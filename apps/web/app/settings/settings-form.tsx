@@ -92,7 +92,11 @@ export function SettingsForm({ countries, languages }: { countries: Option[]; la
           Your data
         </h2>
         <p className="text-text-muted text-sm">
-          Favorites, history and these settings stay in this browser. Clearing site data removes them.
+          Favorites, history and these settings stay in this browser. Clearing site data removes them.{' '}
+          <Link href="/account" className="underline">
+            Sign in
+          </Link>{' '}
+          to keep them on all your devices.
         </p>
         <p className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
           <Link href="/history" className="underline">

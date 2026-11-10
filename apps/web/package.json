@@ -15,7 +15,9 @@
   "dependencies": {
     "@tanstack/react-query": "5.105.0",
     "@tanstack/react-virtual": "3.14.23",
+    "@tunely/db": "workspace:*",
     "@tunely/shared": "workspace:*",
+    "better-auth": "1.7.14",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "hls.js": "1.7.3",

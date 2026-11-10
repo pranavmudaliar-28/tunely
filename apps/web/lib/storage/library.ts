@@ -1,8 +1,9 @@
 'use client';
 
 import type { ChannelSummary } from '@tunely/shared';
-import { createStore, get, update, type UseStore } from 'idb-keyval';
+import { createStore, get, setMany, update, type UseStore } from 'idb-keyval';
 import { useSyncExternalStore } from 'react';
+import { FOLDER_LIMIT, FOLDER_NAME_MAX, HISTORY_LIMIT } from './limits';
 
 // Guest favorites and history live in this browser only (IndexedDB). We keep a snapshot of each
 // channel so the lists render without an API call.
@@ -20,15 +21,13 @@ export interface Folder {
   channelIds: string[];
 }
 
-interface Library {
+export interface Library {
   favorites: ChannelSummary[];
   history: HistoryEntry[];
   folders: Folder[];
 }
 
-export const HISTORY_LIMIT = 100;
-export const FOLDER_LIMIT = 20;
-export const FOLDER_NAME_MAX = 30;
+export { FOLDER_LIMIT, FOLDER_NAME_MAX, HISTORY_LIMIT };
 
 /** Only the card fields: a full Channel (with stream URLs) never lands in storage. */
 const snapshot = ({
@@ -78,6 +77,12 @@ let state: Library = EMPTY;
 let loaded: Promise<void> | null = null;
 let watching = false;
 const listeners = new Set<() => void>();
+/** Told about the viewer's own changes (not loads or imports): account sync uploads them. */
+const editListeners = new Set<() => void>();
+export function onLibraryEdit(fn: () => void) {
+  editListeners.add(fn);
+  return () => void editListeners.delete(fn);
+}
 
 function emit(next: Library) {
   state = next;
@@ -117,7 +122,11 @@ export function loadLibrary(): Promise<void> {
  * Apply `fn` to what is stored, read and written in one transaction, so a change made in another tab is never
  * overwritten by this tab's older copy. Returns the new value.
  */
-async function change<K extends keyof Library>(key: K, fn: (current: Library[K]) => Library[K]) {
+async function change<K extends keyof Library>(
+  key: K,
+  fn: (current: Library[K]) => Library[K],
+  quiet = false,
+) {
   await loadLibrary();
   // Show the change at once (a controlled checkbox would otherwise snap back until the write lands); the stored
   // merge below then folds in any other tab's changes.
@@ -130,7 +139,30 @@ async function change<K extends keyof Library>(key: K, fn: (current: Library[K])
   }
   next ??= fn(state[key]);
   emit({ ...state, [key]: next });
+  if (!quiet) editListeners.forEach((l) => l());
   return next;
+}
+
+/** The library as stored now. */
+export async function readLibrary(): Promise<Library> {
+  await loadLibrary();
+  return state;
+}
+
+/** Replace the whole library (account sync); not reported as an edit. */
+export async function replaceLibrary(next: Library) {
+  await loadLibrary();
+  const clean: Library = {
+    favorites: READ.favorites(next.favorites),
+    history: READ.history(next.history),
+    folders: READ.folders(next.folders),
+  };
+  try {
+    await setMany(Object.entries(clean), store());
+  } catch {
+    // Storage blocked: this page view still shows it.
+  }
+  emit(clean);
 }
 
 export async function toggleFavorite(channel: ChannelSummary) {
@@ -219,11 +251,14 @@ export async function clearHistory() {
 /** Store fresh card fields (status, logo, name) for favorites, so the next visit compares against today. */
 export async function refreshFavorites(fresh: ChannelSummary[]) {
   const byId = new Map(fresh.map((c) => [c.id, c]));
-  await change('favorites', (list) =>
-    list.map((c) => {
-      const f = byId.get(c.id);
-      return f ? snapshot(f) : c;
-    }),
+  await change(
+    'favorites',
+    (list) =>
+      list.map((c) => {
+        const f = byId.get(c.id);
+        return f ? snapshot(f) : c;
+      }),
+    true, // an automatic refresh, not the viewer's edit
   );
 }
 

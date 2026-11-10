@@ -259,6 +259,84 @@ export const programmes = pgTable(
   (t) => [primaryKey({ columns: [t.channelId, t.start] })],
 );
 
+// ---- Accounts (Better Auth; optional, for syncing a viewer's own lists across devices) ----
+// Field names are Better Auth's; columns are ours. Sessions never get an IP or User-Agent, and Google's OAuth tokens
+// are dropped (we only need who it is): see apps/web/lib/auth.ts.
+
+const at = (name: string) => timestamp(name, { withTimezone: true });
+
+export const authUser = pgTable('auth_user', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  emailVerified: boolean('email_verified').notNull().default(false),
+  image: text('image'),
+  createdAt: at('created_at').notNull().defaultNow(),
+  updatedAt: at('updated_at').notNull().defaultNow(),
+});
+
+export const authSession = pgTable(
+  'auth_session',
+  {
+    id: text('id').primaryKey(),
+    expiresAt: at('expires_at').notNull(),
+    token: text('token').notNull().unique(),
+    createdAt: at('created_at').notNull().defaultNow(),
+    updatedAt: at('updated_at').notNull().defaultNow(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    userId: text('user_id')
+      .notNull()
+      .references(() => authUser.id, { onDelete: 'cascade' }),
+  },
+  (t) => [index('auth_session_user_idx').on(t.userId)],
+);
+
+export const authAccount = pgTable(
+  'auth_account',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('account_id').notNull(),
+    providerId: text('provider_id').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => authUser.id, { onDelete: 'cascade' }),
+    accessToken: text('access_token'),
+    refreshToken: text('refresh_token'),
+    idToken: text('id_token'),
+    accessTokenExpiresAt: at('access_token_expires_at'),
+    refreshTokenExpiresAt: at('refresh_token_expires_at'),
+    scope: text('scope'),
+    password: text('password'),
+    createdAt: at('created_at').notNull().defaultNow(),
+    updatedAt: at('updated_at').notNull().defaultNow(),
+  },
+  (t) => [index('auth_account_user_idx').on(t.userId)],
+);
+
+export const authVerification = pgTable(
+  'auth_verification',
+  {
+    id: text('id').primaryKey(),
+    identifier: text('identifier').notNull(),
+    value: text('value').notNull(),
+    expiresAt: at('expires_at').notNull(),
+    createdAt: at('created_at').notNull().defaultNow(),
+    updatedAt: at('updated_at').notNull().defaultNow(),
+  },
+  (t) => [index('auth_verification_identifier_idx').on(t.identifier)],
+);
+
+/** A signed-in viewer's favorites, folders, history and settings, as one document (last write wins, merged on
+ * first sign-in). Deleted with the account. */
+export const userLibrary = pgTable('user_library', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => authUser.id, { onDelete: 'cascade' }),
+  data: jsonb('data').notNull(),
+  updatedAt: at('updated_at').notNull().defaultNow(),
+});
+
 // ---- Web push (opt-in, no account) ----
 
 /** A browser that turned notifications on. The endpoint comes from the browser's push service; no IP, no user. */

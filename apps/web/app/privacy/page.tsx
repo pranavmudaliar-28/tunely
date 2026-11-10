@@ -58,6 +58,12 @@ export default function PrivacyPage() {
           reminded of. Each request is deleted once its notification is sent, and all of it when you turn
           notifications off in Settings. No account and no IP address.
         </li>
+        <li>
+          If you sign in (optional), we keep your email address, the name your Google account gives (if you use
+          Google) and your lists: favorites, folders, watch history and settings, so they follow you to your other
+          devices. Sign-in sessions don&apos;t record your IP address or device, and we don&apos;t keep Google&apos;s
+          access tokens. Deleting your account (on the account page) removes all of it.
+        </li>
         <li>Our hosting providers keep standard server logs for security, for a short time.</li>
       </ul>
 

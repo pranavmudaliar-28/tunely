@@ -51,6 +51,12 @@ let cache: Prefs | null = null;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
 
+/** Told when prefs are saved in this tab (account sync uploads them). */
+export function onPrefsSaved(fn: () => void) {
+  listeners.add(fn);
+  return () => void listeners.delete(fn);
+}
+
 /** Merge `patch` into the stored prefs; `undefined` clears a field. */
 export function savePrefs(patch: Partial<Prefs>) {
   // The in-memory copy is current for this tab (another tab's change resets it), and survives blocked storage.

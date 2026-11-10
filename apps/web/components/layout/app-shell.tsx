@@ -5,6 +5,7 @@ import { PageAds } from '@/components/ads/page-ads';
 import { GlobalPlayer } from '@/components/player/global-player';
 import { SearchButton, SearchCommand } from '@/components/search/search-command';
 import { SpatialNav } from './spatial-nav';
+import { AccountSync } from './account-sync';
 import { InstallButton } from './install-button';
 import { ThemeToggle } from './theme-toggle';
 import { FOOTER_PAGES, SUPPORT_URL } from '@/lib/site';
@@ -97,6 +98,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
       <SearchCommand />
       <SpatialNav />
+      <AccountSync />
       <GlobalPlayer />
       <PageAds />
     </div>

@@ -52,7 +52,7 @@ From the feature review of 6 Nov 2026. Each item builds on what Tunely already d
 
 ## Phase 3: knows what's on, everywhere (started 6 Nov 2026)
 
-Done: **H1 Now & Next** on watch pages, cards and search, and the `/guide` page, from i.mjh.nz (about 300 live channels). **F4** calendar reminders (no events page yet: the guide data has no real fixtures). **F3** multi-view and **A2** dead-air detection. **A3** catalog quality report (`pnpm quality`). **F2** opt-in web push (back online, programme reminders). **F5** Android TV app (`apps/android-tv`). The owner asked to build everything else on 7 Nov 2026.
+Done: **H1 Now & Next** on watch pages, cards and search, and the `/guide` page, from i.mjh.nz (about 300 live channels). **F4** calendar reminders (no events page yet: the guide data has no real fixtures). **F3** multi-view and **A2** dead-air detection. **A3** catalog quality report (`pnpm quality`). **F2** opt-in web push (back online, programme reminders). **F5** Android TV app (`apps/android-tv`). **F1** accounts and sync (`/account`, off until configured). The owner asked to build everything else on 7 Nov 2026.
 
 | ID  | Feature                                                                      | Size |
 | --- | ---------------------------------------------------------------------------- | ---- |
@@ -70,6 +70,8 @@ Done: **H1 Now & Next** on watch pages, cards and search, and the `/guide` page,
 
 - **More guide coverage (India):** the owner approved scraping on 7 Nov. tataplay.com (351 of our 642 live Indian channels) and dishtv.in block anything that isn't their own website (bot protection, a session token); getting past that is circumvention, not done. airtelxstream.in's guide API (287 channels) answers an honest client, but fetching it from our servers was stopped by this session's permission rules: the owner's call.
 - **Push in production:** generate VAPID keys and set them on Render (worker) and Vercel (web), see `.env.example`.
+- **Accounts in production:** a Resend account (free tier) with a verified sending domain and/or a Google OAuth client, plus `BETTER_AUTH_SECRET` and `DATABASE_URL` on Vercel.
+- **Admin 2FA:** admin is still the `ADMIN_TOKEN` bearer on the API; the admin UI with 2FA (Better Auth's two-factor plugin) waits for Phase 5's admin screens.
 - **Paid AI:** an LLM for smart search v2 or catalog checks.
 - **Large dependency:** the on-device speech model for A4.
 - **Accounts:** when to start them.
